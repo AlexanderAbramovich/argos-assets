@@ -1,0 +1,673 @@
+<!-- T123 в САМОМ КОНЦЕ страницы (или Настройки сайта → код перед </body>): все скрипты -->
+<!-- @BLOCKS_JS:start -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4/dist/model-viewer.min.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', function(){
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hasGsap = typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined';
+  /* сцены инициализируются под режим (телефон/десктоп, тач/мышь) один раз; пересечение брейкпоинта без перезагрузки
+     (DevTools-эмуляция ↔ окно, планшет с поворотом) оставляло кашу из двух режимов — просто перезагружаем страницу */
+  [matchMedia('(min-width: 960px)'), matchMedia('(hover: hover)')].forEach(function(mq){
+    var was = mq.matches, t;
+    mq.addEventListener('change', function(){ clearTimeout(t); t = setTimeout(function(){ if (mq.matches !== was) location.reload(); }, 400); });
+  });
+  if (hasGsap) gsap.registerPlugin(ScrollTrigger);
+
+  /* ---------- появление на скролле ---------- */
+  var rv = Array.prototype.slice.call(document.querySelectorAll('.rv'));
+  if (reduce || !('IntersectionObserver' in window)) {
+    rv.forEach(function(el){ el.classList.add('is-in'); });
+  } else {
+    var rio = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if (e.isIntersecting) { e.target.classList.add('is-in'); rio.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
+    rv.forEach(function(el){ rio.observe(el); });
+  }
+
+  /* ---------- скраб-сцены: кадры крутятся скроллом ---------- */
+  function pad(n, w){ n = String(n); while (n.length < w) n = '0' + n; return n; }
+
+  function initScrub(scene){
+    var media  = scene.querySelector('.media');
+    var canvas = scene.querySelector('canvas');
+    var img    = media.querySelector('img');
+    var tpl    = scene.getAttribute('data-frames');
+    if (tpl && !window.matchMedia('(min-width: 960px)').matches && (window.devicePixelRatio || 1) < 1.5) tpl = tpl.replace('/f_{i}', '/m_{i}');   /* мелкие кадры только на 1x-экранах */
+    var count  = parseInt(scene.getAttribute('data-count'), 10) || 0;
+    var padW   = parseInt(scene.getAttribute('data-pad'), 10) || 3;
+    var fit    = (media.classList.contains('stage-media') || media.classList.contains('op-media')) && desktopFit() ? 'contain' : 'cover';
+    function desktopFit(){ return window.matchMedia('(min-width: 960px)').matches; }
+    function fitMode(){ return media.getAttribute('data-fit') || fit; }
+    var callouts = Array.prototype.slice.call(scene.querySelectorAll('.callout'));
+    var revealAt = parseFloat(scene.getAttribute('data-reveal')) || 0;
+    var desktop = window.matchMedia('(min-width: 960px)').matches;
+    var frames = [], loaded = 0, cur = -1, ctx = canvas.getContext('2d');
+
+    function src(i){ return tpl.replace('{i}', pad(i, padW)); }
+
+    /* плашки на рейках: якорь и высота плашки заданы в % кадра → переводим в px той же математикой, что и draw() */
+    function layoutCallouts(){
+      var f = frames[0]; if (!desktop || !f || !f.naturalWidth) return;
+      var W = media.clientWidth, H = media.clientHeight;
+      var mode = fitMode();
+      var iw = f.naturalWidth, ih = f.naturalHeight, s = mode === 'contain' ? Math.min(W / iw, H / ih) : Math.max(W / iw, H / ih);
+      var dw = iw * s, dh = ih * s, dx = (W - dw) / 2, dy = mode === 'cover-bottom' ? (H - dh) : (H - dh) / 2;
+      var inset = Math.max(48, W * 0.035), rails = { l: [], r: [] };
+      callouts.forEach(function(c){
+        if (!c.hasAttribute('data-fx')) return;
+        var txt = c.querySelector('.txt'); if (!txt) return;
+        var ax = dx + parseFloat(c.getAttribute('data-fx')) / 100 * dw;
+        var ay = dy + parseFloat(c.getAttribute('data-fy')) / 100 * dh;
+        var by = dy + parseFloat(c.getAttribute('data-by')) / 100 * dh;
+        var bw = txt.offsetWidth || 240, bh = txt.offsetHeight || 100;
+        by = Math.max(bh / 2 + 16, Math.min(H - bh / 2 - 16, by));
+        var side = c.getAttribute('data-side') || 'r';
+        var ex = side === 'r' ? (W - inset - bw) : (inset + bw);
+        rails[side].push({ c: c, ax: ax, ay: ay, by: by, bh: bh, ex: ex });
+      });
+      /* на одной рейке плашки не должны наезжать: сверху вниз раздвигаем с зазором 12px */
+      Object.keys(rails).forEach(function(side){
+        var list = rails[side].sort(function(p, q){ return p.by - q.by; }), prevBottom = -1e9;
+        list.forEach(function(it){ var top = Math.max(it.by - it.bh / 2, prevBottom + 12); it.by = Math.min(H - it.bh / 2 - 16, top + it.bh / 2); prevBottom = it.by + it.bh / 2; });
+        list.forEach(function(it){
+          var tx = it.ex - it.ax, ty = it.by - it.ay, c = it.c;
+          c.style.setProperty('--x', it.ax.toFixed(1) + 'px'); c.style.setProperty('--y', it.ay.toFixed(1) + 'px');
+          c.style.setProperty('--tx', tx.toFixed(1) + 'px'); c.style.setProperty('--ty', ty.toFixed(1) + 'px');
+          c.style.setProperty('--len', Math.hypot(tx, ty).toFixed(1) + 'px');
+          c.style.setProperty('--ang', (Math.atan2(ty, tx) * 180 / Math.PI).toFixed(2) + 'deg');
+        });
+      });
+    }
+
+    function draw(i){
+      var f = frames[i]; if (!f || !f.complete || !f.naturalWidth) return;
+      var W = media.clientWidth, H = media.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+      if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+      var mode = fitMode();
+      var iw = f.naturalWidth, ih = f.naturalHeight, s = mode === 'contain' ? Math.min(W / iw, H / ih) : Math.max(W / iw, H / ih);
+      var dw = iw * s, dh = ih * s, dx = (W - dw) / 2, dy = mode === 'cover-bottom' ? (H - dh) : (H - dh) / 2;
+      if (!desktop && media.classList.contains('op-media')) {   /* телефон: cover в компактный бокс, голова (≈57 % ширины кадра) по центру, верх кадра — верх бокса */
+        s = Math.max(W / iw, H / ih); dw = iw * s; dh = ih * s;
+        dx = Math.min(0, Math.max(W - dw, W / 2 - 0.57 * dw)); dy = 0;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(f, dx, dy, dw, dh);
+      cur = i;
+    }
+
+    function setProgress(p){
+      p = Math.max(0, Math.min(1, p));
+      var i = Math.min(count - 1, Math.round(p * (count - 1)));
+      if (frames.length && i !== cur) draw(i);
+      if (revealAt) media.style.setProperty('--reveal', (desktop ? Math.min(1, 0.35 + p / revealAt * 0.65) : Math.min(1, p / revealAt)).toFixed(3));
+      callouts.forEach(function(c){
+        var at = parseFloat(c.getAttribute('data-at'));
+        c.classList.toggle('is-on', p >= at - 0.02);
+      });
+    }
+
+    function bind(){
+      if (!hasGsap || reduce) { setProgress(1); return; }
+      if (!desktop) {   /* телефон: не скраб — один проигрыш при появлении: из темноты → поворот головы → требования по очереди */
+        var played = false, o = { p: 0 };
+        setProgress(0);
+        var io = new IntersectionObserver(function(en){
+          if (!en[0].isIntersecting || played) return; played = true; io.disconnect();
+          gsap.to(o, { p: 1, duration: 3, ease: 'power2.inOut', onUpdate: function(){ setProgress(o.p); } });
+        }, { threshold: 0.3 });
+        io.observe(media);
+        return;
+      }
+      var st = ScrollTrigger.create({
+        trigger: scene,
+        start: 'top top',
+        end:   'bottom bottom',
+        scrub: true,
+        onUpdate: function(self){ setProgress(self.progress); }
+      });
+      setProgress(st.progress);   /* сразу: до первого onUpdate сцена стояла бы без маски (оператор виден до старта) */
+      if (revealAt) {   /* въезд сцены в экран: оператор уже начинает проступать (0 → 35 % проявления), чтобы не было экрана черноты */
+        var pre = ScrollTrigger.create({ trigger: scene, start: 'top bottom', end: 'top top', scrub: true,
+          onUpdate: function(self){ if (st.progress <= 0) media.style.setProperty('--reveal', (self.progress * 0.35).toFixed(3)); } });
+      }
+    }
+
+    /* пробуем первый кадр; нет — остаёмся на картинке */
+    var probe = new Image();
+    probe.onload = function(){
+      media.classList.add('has-frames'); scene.classList.add('has-frames');
+      frames[0] = probe; loaded = 1; draw(0); layoutCallouts();
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutCallouts);
+      for (var i = 1; i < count; i++) (function(i){
+        var im = new Image(); im.decoding = 'async';
+        im.onload = function(){ loaded++; if (i === cur) draw(i); };
+        im.src = src(i); frames[i] = im;
+      })(i);
+      window.addEventListener('resize', function(){ if (cur >= 0) draw(cur); layoutCallouts(); });
+      if (hasGsap) ScrollTrigger.refresh();
+      bind();
+    };
+    /* запасной режим для Tilda (файлы ≤ 5 МБ): видео all-intra, перемотка по прогрессу */
+    function initVideo(){
+      var vsrc = scene.getAttribute('data-video'); if (!vsrc) { bind(); return; }
+      var v = document.createElement('video');
+      v.muted = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('aria-hidden', 'true');
+      v.className = 'scrub-video';
+      var ready = false, pending = null, seeking = false;
+      v.addEventListener('loadedmetadata', function(){
+        ready = true; media.classList.add('has-video'); scene.classList.add('has-frames');
+        if (hasGsap) ScrollTrigger.refresh();
+        bind();
+      });
+      v.addEventListener('seeked', function(){ seeking = false; if (pending !== null) { var t = pending; pending = null; seekTo(t); } });
+      v.addEventListener('error', function(){ bind(); });
+      function seekTo(t){ if (seeking) { pending = t; return; } seeking = true; try { v.currentTime = t; } catch(e){ seeking = false; } }
+      setProgressVideo = function(p){ if (!ready || !isFinite(v.duration)) return; seekTo(Math.min(v.duration - 0.05, p * v.duration)); };
+      v.src = vsrc; v.load();
+      media.appendChild(v);
+    }
+    var setProgressVideo = null;
+    var _setProgress = setProgress;
+    setProgress = function(p){ _setProgress(p); if (setProgressVideo) setProgressVideo(Math.max(0, Math.min(1, p))); };
+
+    probe.onerror = function(){ initVideo(); };
+    if (tpl && count) probe.src = src(0); else initVideo();
+  }
+  Array.prototype.slice.call(document.querySelectorAll('[data-scrub]')).forEach(initScrub);
+
+  /* ---------- 3D-сцена дрона: сборка по скроллу, потом поворот ---------- */
+  Array.prototype.slice.call(document.querySelectorAll('[data-mv]')).forEach(function(stage){
+    var wrap = stage.querySelector('.mv-wrap'), mv = stage.querySelector('model-viewer');
+    if (!mv) return;
+    var desktop = window.matchMedia('(min-width: 960px)').matches;
+    var hs = Array.prototype.slice.call(mv.querySelectorAll('.hs'));
+    var ready = false, failed = false;
+    function fallback(){ if (failed) return; failed = true; wrap.classList.add('is-fallback'); stage.classList.remove('has-mv'); if (hasGsap) ScrollTrigger.refresh(); }
+    if (!window.customElements) { fallback(); return; }
+    var defTimer = setTimeout(function(){ if (!window.customElements.get('model-viewer')) fallback(); }, 12000);
+    mv.addEventListener('error', fallback);
+    mv.addEventListener('load', function(){
+      clearTimeout(defTimer); ready = true;
+      stage.classList.add('has-mv');
+      try { mv.pause(); mv.currentTime = 0; } catch(e){}
+      if (!desktop) {   /* телефон: сборка проигрывается сама, когда бокс в кадре, камера наезжает, дальше медленный автоповорот + палец */
+        try { mv.maxCameraOrbit = 'auto 105deg 130%'; mv.cameraOrbit = '35deg 68deg 100%'; mv.cameraTarget = '0m 0.14m 0m'; } catch(e){}
+        var fired = false;
+        var io = new IntersectionObserver(function(en){
+          if (!en[0].isIntersecting || fired) return; fired = true; io.disconnect();
+          try { mv.play({ repetitions: 1 }); } catch(e){}
+          if (hasGsap && !reduce) gsap.to({ a: 0 }, { a: 1, duration: 2.2, ease: 'power2.inOut', onUpdate: function(){ var a = this.targets()[0].a; mv.cameraOrbit = '35deg 68deg ' + (100 - a * 38).toFixed(1) + '%'; mv.cameraTarget = '0m ' + (0.14 - a * 0.2).toFixed(3) + 'm 0m'; },
+            onComplete: function(){ try { mv.autoRotateDelay = 0; mv.rotationPerSecond = '16deg'; mv.autoRotate = true; } catch(e){} } });
+          else { try { mv.cameraOrbit = '35deg 68deg 62%'; mv.cameraTarget = '0m -0.06m 0m'; mv.autoRotateDelay = 0; mv.autoRotate = true; } catch(e){} }
+        }, { threshold: 0.35 });
+        io.observe(wrap);
+        return;
+      }
+      if (hasGsap) ScrollTrigger.refresh();
+      if (desktop) bind();
+    });
+    var ASSEMBLE_END = 0.5, THETA0 = 35;
+    function apply(p){
+      if (!ready) return;
+      var d = mv.duration || 2;
+      var a = Math.min(1, p / ASSEMBLE_END);
+      var t = a * (d - 0.001);
+      if (Math.abs((mv.currentTime || 0) - t) > 0.004) mv.currentTime = t;
+      var r = Math.max(0, (p - ASSEMBLE_END) / (1 - ASSEMBLE_END));
+      var theta = THETA0 + r * 360;
+      var rad = desktop ? 76 - a * 26 : 96 - a * 36;   /* наезд камеры по мере сборки (телефон: дальше, бокс портретный) */
+      mv.cameraOrbit = theta.toFixed(1) + 'deg 68deg ' + rad.toFixed(1) + '%';
+      mv.cameraTarget = '0m ' + (0.14 - a * 0.2).toFixed(3) + 'm 0m';   /* центр: разведённый рой выше, собранный дрон ниже */
+      hs.forEach(function(h){ var at = parseFloat(h.getAttribute('data-at')); h.classList.toggle('is-on', p >= at - 0.02); });
+      if (!tidyRaf) tidyRaf = requestAnimationFrame(tidy);   /* плашки мерим после того, как model-viewer спроецирует хотспоты */
+    }
+    var tidyRaf = 0;
+    function tidy(){
+      tidyRaf = 0;
+      var on = hs.filter(function(h){ return h.classList.contains('is-on'); }), vw = document.documentElement.clientWidth;
+      on.forEach(function(h){ h.style.setProperty('--shift', '0px'); h.classList.remove('is-flip'); });
+      /* к краю экрана — переворачиваем плашку к центру */
+      on.forEach(function(h){ var r = h.querySelector('.txt').getBoundingClientRect(); if (r.right > vw - 8 || r.left < 8) h.classList.add('is-flip'); });
+      /* наехали друг на друга — нижнюю сдвигаем вниз, обе остаются */
+      var rects = on.map(function(h){ return h.querySelector('.txt').getBoundingClientRect(); });
+      for (var i = 0; i < on.length; i++) for (var k = i + 1; k < on.length; k++) {
+        var a = rects[i], b = rects[k];
+        if (a.left < b.right - 6 && b.left < a.right - 6 && a.top < b.bottom - 6 && b.top < a.bottom - 6) {
+          var lower = a.top <= b.top ? k : i, upper = lower === k ? i : k, d = rects[upper].bottom - rects[lower].top + 8;
+          var cur = parseFloat(on[lower].style.getPropertyValue('--shift')) || 0; on[lower].style.setProperty('--shift', (cur + d) + 'px');
+          rects[lower] = { left: rects[lower].left, right: rects[lower].right, top: rects[lower].top + d, bottom: rects[lower].bottom + d };
+        }
+      }
+    }
+    function bind(){
+      if (!hasGsap || reduce) { apply(1); return; }
+      ScrollTrigger.create({ trigger: stage, start: 'top top', end: 'bottom bottom', scrub: true, onUpdate: function(self){ apply(self.progress); } });
+      apply(0);
+    }
+  });
+
+  /* ---------- видеополоса: грузим и играем только в зоне видимости ---------- */
+  var vids = Array.prototype.slice.call(document.querySelectorAll('.reel-strip video'));
+  if (reduce) { vids.forEach(function(v){ v.removeAttribute('autoplay'); }); }
+  else if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        var v = e.target;
+        if (e.isIntersecting) {
+          if (!v.getAttribute('src')) { v.src = v.getAttribute('data-src'); v.load(); }
+          var p = v.play(); if (p && p.catch) p.catch(function(){});
+        } else { v.pause(); }
+      });
+    }, { rootMargin: '120px 0px' });
+    vids.forEach(function(v){ io.observe(v); });
+  }
+
+  /* @FX:pay-odometer start */
+  /* ---------- 03 Доход: счётчик купюр — значение разгоняется и тормозит, ленты цифр крутятся непрерывно ---------- */
+  (function(){
+    var big = document.querySelector('#pay .pay-big[data-odo]'), sec = document.getElementById('pay');
+    if (!big || !sec || !hasGsap || reduce) return;                 /* без GSAP или при reduce: текст стоит как есть */
+    var pw = sec.querySelector('.pay-plaque-w'), text = big.textContent, strips = [], digits = '';
+    if (!/^[^<>&]+$/.test(text)) return;
+    try {
+      var html = '';
+      for (var i = 0; i < text.length; i++) {
+        var ch = text.charAt(i), d = /\d/.test(ch) ? +ch : -1;
+        if (d < 0) { html += '<span class="odo-d"><span class="odo-s"><i>' + (ch === ' ' ? '\u00A0' : ch) + '</i></span></span>'; continue; }
+        var s = ''; for (var k = 0; k < 20; k++) s += '<i>' + (k % 10) + '</i>';   /* лента 0–9 дважды: дробный сдвиг 9.x показывает 9 → 0 */
+        html += '<span class="odo-d is-num"><span class="odo-s" data-d="' + d + '" style="--n:' + (10 + d) + '">' + s + '</span></span>';
+        digits += ch;
+      }
+      big.innerHTML = '<span class="vh">' + text + '</span><span class="odo" aria-hidden="true">' + html + '</span>';
+      strips = Array.prototype.slice.call(big.querySelectorAll('.odo-s[data-d]'));
+    } catch (e) { big.textContent = text; return; }
+    var n = strips.length, TARGET = parseInt(digits, 10);
+    if (!n || !isFinite(TARGET)) return;
+    sec.classList.add('odo-armed');
+    var state = { v: 0 };
+    function render(){                                               /* разряд k считает от правого края: сдвиг = (v / 10^k) mod 10, дробный */
+      for (var i = 0; i < n; i++) {
+        var k = n - 1 - i, frac = (state.v / Math.pow(10, k)) % 10;
+        strips[i].style.transform = 'translateY(' + (-frac * .9).toFixed(4) + 'em)';
+      }
+    }
+    render();
+    var tl = gsap.timeline({ paused: true, onComplete: function(){ strips.forEach(function(el){ el.style.transform = ''; }); } });   /* финал отдаём CSS (--n): ресайз не плывёт */
+    tl.to(state, { v: TARGET, duration: 2.4, ease: 'power3.out', onUpdate: render });   /* разгон и торможение: старшие докатываются первыми */
+    /* посадка: табло просело на 4px и один кадр яркости; плашка вытирается тем же bWipe, что в хиро */
+    tl.call(function(){ big.classList.add('is-hit'); if (pw) pw.classList.add('is-wipe'); }, null, 2.4)   /* просадку даёт CSS на обёртке .odo — ленты GSAP не трогает */
+      .call(function(){ big.classList.remove('is-hit'); }, null, 2.47);
+    ScrollTrigger.create({ trigger: sec.querySelector('.pay-head') || sec, start: 'top 75%', once: true, onEnter: function(){ tl.play(); } });
+  })();
+  /* @FX:pay-odometer end */
+
+  /* @FX:spec-selector start */
+  /* ---------- 04 Специальности: выбор класса ---------- */
+  /* вход сетки: жёсткий проход 01→02→03→04→01 (.35 с шаг, каты без движения — скобки живут в карточках), дальше за мышью: наведение = выбор + pop,
+     ушёл с сетки — карточка садится, выбор остаётся. Тач: выбор едет за скроллом (карточка у 45 % экрана), тап фиксирует. Без GSAP / reduce: сразу 01. */
+  (function(){
+    var grid = document.querySelector('#spec .spec-grid'); if (!grid) return;
+    var cards = Array.prototype.slice.call(grid.querySelectorAll('.spec')); if (cards.length < 2) return;
+    var cur = null, started = false, demo = [], raf = 0;
+    var follow = !(window.matchMedia && matchMedia('(hover:hover)').matches);   /* тач: выбор едет за скроллом */
+    function select(card, pop){
+      if (cur !== card) { if (cur) cur.classList.remove('is-sel', 'is-pop'); card.classList.add('is-sel'); cur = card; }
+      if (pop) {   /* масштаб pop — сколько влезает в экран по горизонтали (с полем 16px), но не больше --spec-pop */
+        var r = card.getBoundingClientRect(), vw = document.documentElement.clientWidth, cx = r.left + r.width / 2;
+        var max = parseFloat(getComputedStyle(grid).getPropertyValue('--spec-pop')) || 1, fitS = (2 * Math.min(cx, vw - cx) - 32) / r.width;
+        card.style.setProperty('--spec-pop', Math.max(1, Math.min(max, fitS)).toFixed(3));
+      }
+      card.classList.toggle('is-pop', !!pop);
+      var fab = document.querySelector('.fab'); if (fab) { fab.classList.add('is-quick'); fab.classList.toggle('is-off', !!pop); }   /* пока карта выехала — плавающая MAX не лежит на её тексте */
+      grid.classList.add('has-sel'); started = true;
+    }
+    function killDemo(){ demo.forEach(function(d){ d.kill(); }); demo = []; }
+    function pick(card, pop){ killDemo(); select(card, pop); }
+    function nearest(){   /* карточка, чей центр ближе к 45% высоты экрана; в ряду (2 колонки) — ближняя к центру экрана по x */
+      var line = innerHeight * .45, cxv = innerWidth / 2, best = cards[0], bd = 1e9;
+      cards.forEach(function(c){ var r = c.getBoundingClientRect(), d = Math.abs((r.top + r.bottom) / 2 - line) + Math.abs((r.left + r.right) / 2 - cxv) * 0.001; if (d < bd) { bd = d; best = c; } });
+      return best;
+    }
+    function runDemo(){   /* проход по карточкам в кадре и назад на первую; уже тронули мышью — не мешаем */
+      if (started) return;
+      var vh = innerHeight, seq = cards.filter(function(c){ var r = c.getBoundingClientRect(); return r.top < vh * .8 && r.bottom > vh * .2; });
+      if (!seq.length) seq = [cards[0]];
+      select(seq[0], false);
+      if (seq.length < 2) return;
+      seq.slice(1).concat(seq[0]).forEach(function(c, i){ demo.push(gsap.delayedCall(.35 * (i + 1), function(){ select(c, false); })); });
+    }
+    function onScroll(){
+      if (raf) return;
+      raf = requestAnimationFrame(function(){
+        raf = 0; var g = grid.getBoundingClientRect();
+        if (g.top > innerHeight * .85 || g.bottom < 0) return;
+        var c = nearest(); if (c !== cur) pick(c, false);
+      });
+    }
+    cards.forEach(function(c){
+      c.addEventListener('mouseenter', function(){ if (!follow) pick(c, true); });
+      c.addEventListener('focus', function(){ pick(c, !follow); });
+      c.addEventListener('click', function(){ pick(c, !follow); });
+    });
+    function unpop(){ if (cur) cur.classList.remove('is-pop'); var fab = document.querySelector('.fab'); if (fab) fab.classList.remove('is-off'); }
+    grid.addEventListener('mouseleave', unpop);   /* ушёл с сетки — карточка садится, выбор остаётся */
+    grid.addEventListener('focusout', function(e){ if (!grid.contains(e.relatedTarget)) unpop(); });   /* и по клавиатуре тоже */
+    window.addEventListener('touchstart', function(){ if (follow || reduce) return; follow = true; killDemo(); if (cur) cur.classList.remove('is-pop'); window.addEventListener('scroll', onScroll, { passive: true }); }, { passive: true, once: true });
+    if (follow && !reduce) { window.addEventListener('scroll', onScroll, { passive: true }); onScroll(); }
+    else if (!hasGsap || reduce || follow) select(cards[0], false);   /* финальное состояние сразу */
+    else ScrollTrigger.create({ trigger: grid, start: 'top 65%', once: true, onEnter: runDemo });
+  })();
+  /* @FX:spec-selector end */
+
+      /* @FX:steps-stamps start */
+  /* 07 Шаги = выбор миссии. Десктоп: превью слева заполняется из активного .step (кат + проблеск), список справа подсвечивает активный;
+     прогресс липкой сцены делится на 4 зоны → активный этап; клик = прыжок скролла к зоне (скролл — единственный источник правды).
+     Мобилка: обычный список, активен этап у 40 % экрана, тап переключает. Без GSAP / reduce: не взводим — сетка, всё видно, штампы стоят. */
+  (function(){
+    var scene = document.querySelector('#steps .steps-scene'); if (!scene) return;
+    var steps = Array.prototype.slice.call(scene.querySelectorAll('.step')), big = scene.querySelector('.lvl-big'); if (steps.length < 2) return;
+    if (!hasGsap || reduce) return;
+    var desktop = window.matchMedia('(min-width: 960px)').matches, cur = -1, N = steps.length;
+    steps.forEach(function(s, i){ s.style.setProperty('--k', i); });
+    function fillBig(s, cut){
+      if (!big) return;
+      var q = function(sel, el){ return (el || s).querySelector(sel); };
+      q('.step-num', big).textContent = q('.step-num').textContent;
+      q('h3', big).innerHTML = q('h3').innerHTML;
+      q('p', big).innerHTML = q('p').innerHTML;
+      var src = q('img'), dst = q('img', big); if (src && dst && dst.getAttribute('src') !== src.getAttribute('src')) dst.src = src.getAttribute('src');
+      if (cut) { big.classList.remove('is-cut'); void big.offsetWidth; big.classList.add('is-cut'); }
+    }
+    function setActive(i){
+      i = Math.max(0, Math.min(N - 1, i)); if (i === cur) return; var first = cur < 0; cur = i;
+      steps.forEach(function(s, j){ s.classList.toggle('is-on', j === i); s.classList.toggle('is-done', j < i); });
+      if (desktop) fillBig(steps[i], !first);
+    }
+    scene.classList.add('is-armed');
+    if (desktop) {
+      scene.classList.add('is-lvl');
+      var st = ScrollTrigger.create({
+        trigger: scene, start: 'top top', end: 'bottom bottom', scrub: true,
+        onUpdate: function(self){ setActive(Math.floor(self.progress * N + 1e-4)); }
+      });
+      steps.forEach(function(s, i){
+        function go(){ var y = st.start + ((i + .5) / N) * (st.end - st.start); window.scrollTo({ top: y, behavior: 'smooth' }); }
+        s.addEventListener('click', go);
+        s.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      });
+      setActive(Math.floor(st.progress * N + 1e-4));
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ ScrollTrigger.refresh(); });
+    } else {
+      var raf = 0, hold = 0, holdT = null;
+      function nearest(){   /* ближайшая к линии 40 %; в ряду из двух (планшет) — по горизонтали чередуем: левая, пока линия в верхней половине карты, правая — в нижней */
+        var line = innerHeight * .4, best = 0, bd = 1e9;
+        steps.forEach(function(s, i){ var r = s.getBoundingClientRect(), d = Math.abs((r.top + r.bottom) / 2 - line); if (d < bd) { bd = d; best = i; } });
+        var rb = steps[best].getBoundingClientRect(), row = steps.map(function(s, i){ return [s, i]; }).filter(function(p){ return Math.abs(p[0].getBoundingClientRect().top - rb.top) < 6; });
+        if (row.length > 1) { var k = Math.min(row.length - 1, Math.floor((line - rb.top) / rb.height * row.length)); best = row[Math.max(0, k)][1]; }
+        return best;
+      }
+      function onScroll(){ if (raf || hold) return; raf = requestAnimationFrame(function(){ raf = 0; setActive(nearest()); }); }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      steps.forEach(function(s, i){ s.addEventListener('click', function(){ setActive(i); hold = 1; clearTimeout(holdT); holdT = setTimeout(function(){ hold = 0; }, 1200); }); });   /* тап держит выбор ~секунду, потом снова за скроллом */
+      setActive(nearest());
+    }
+  })();
+  /* @FX:steps-stamps end */
+
+    /* @FX:atmo start */
+  /* Атмосфера: видео-луп играет только когда хиро ушёл из кадра и вкладка видна; canvas ~30 fps, dpr 1.
+     Слои canvas (снизу вверх): пятна тёплого света (медленно плывут) → дым (большие мягкие моты, вверх) → дальняя пыль (мелкая, тусклая)
+     → ближняя пыль (крупнее, ярче, быстрее, мягкая) → угольки со свечением (поднимаются, мерцают, вспыхивают и гаснут).
+     Футаж .atmo-fx (если файл есть) — screen поверх. */
+  (function(){
+    var atmo = document.querySelector('.atmo'), vid = atmo && atmo.querySelector('.atmo-video'), fx = atmo && atmo.querySelector('.atmo-fx'), cv = atmo && atmo.querySelector('.atmo-dust'), hero = document.querySelector('.hero');
+    if (!atmo || !vid || !cv || reduce) return;
+    var small = window.matchMedia('(max-width: 959px)').matches, run = false, heroOn = true, fxOk = null;
+    /* --- видео --- */
+    function playVid(){
+      if (!vid.getAttribute('src')) { vid.src = vid.getAttribute(small ? 'data-src-sm' : 'data-src-lg'); vid.load(); }
+      var p = vid.play(); if (p && p.catch) p.catch(function(){}); atmo.classList.add('is-on');
+      if (fx && fxOk !== false && atmo.getAttribute('data-fx') === '1') {   /* футаж подключаем только когда файл на месте: data-fx="1" на .atmo (иначе 404 в консоли) */
+        if (!fx.getAttribute('src')) { fxOk = null; fx.addEventListener('loadeddata', function(){ fxOk = true; atmo.classList.add('has-fx'); }, { once: true }); fx.addEventListener('error', function(){ fxOk = false; atmo.classList.remove('has-fx'); }, { once: true }); fx.src = fx.getAttribute(small ? 'data-src-sm' : 'data-src-lg'); fx.load(); }
+        var q = fx.play(); if (q && q.catch) q.catch(function(){});
+      }
+    }
+    function pauseVid(){ vid.pause(); if (fx) fx.pause(); }
+    /* --- canvas --- */
+    var ctx = cv.getContext('2d'), W = 0, H = 0, far = [], near = [], smoke = [], lights = [], E = [], soft = null, last = 0, raf = 0;
+    function mkSoft(){   /* мягкий круг: радиальный градиент один раз в offscreen, дальше только drawImage */
+      var s = document.createElement('canvas'), r = 32; s.width = s.height = r * 2; var g = s.getContext('2d'), gr = g.createRadialGradient(r, r, 0, r, r, r);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.3, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, r * 2, r * 2); return s;
+    }
+    function rnd(a, b){ return a + Math.random() * (b - a); }
+    function seed(){
+      W = cv.width = innerWidth; H = cv.height = innerHeight; far = []; near = []; smoke = []; lights = []; E = [];
+      var k = small ? .45 : 1;
+      for (var i = 0; i < 110 * k; i++) far.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(.5, 1.3), a: rnd(.1, .35), vx: rnd(3, 14), vy: rnd(-4, 5), ph: rnd(0, 6.28) });
+      for (var j = 0; j < 46 * k; j++) near.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(2, 5.5), a: rnd(.18, .55), vx: rnd(10, 34), vy: rnd(-10, 12), ph: rnd(0, 6.28) });
+      for (var m = 0; m < 5; m++) smoke.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(160, 340), a: rnd(.035, .07), vx: rnd(-6, 6), vy: rnd(-14, -5), ph: rnd(0, 6.28) });
+      for (var l = 0; l < 3; l++) lights.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(320, 560), a: rnd(.05, .09), vx: rnd(-9, 9), vy: rnd(-6, 6), ph: rnd(0, 6.28), warm: l < 2 });
+      for (var e = 0; e < 16 * k; e++) E.push(ember(true));
+      if (!soft) soft = mkSoft();
+    }
+    function ember(init){ return { x: rnd(0, W), y: init ? rnd(0, H) : H + 10, r: rnd(1, 2.4), vy: rnd(22, 60), vx: rnd(-10, 10), a: rnd(.5, .95), ph: rnd(0, 6.28), life: rnd(4, 10), t: 0 }; }
+    function blob(x, y, r, a, color){ ctx.globalAlpha = a; ctx.drawImage(soft, x - r, y - r, r * 2, r * 2); }
+    function frame(ts){
+      raf = 0; if (!run) return;
+      if (ts - last < 30) { raf = requestAnimationFrame(frame); return; }   /* ~30 fps хватает, экономим батарею */
+      var dt = Math.min(.05, (ts - last) / 1000 || .03); last = ts;
+      ctx.clearRect(0, 0, W, H);
+      var i, p, a;
+      /* свет: тёплые пятна, «лампа за дымом» */
+      ctx.globalCompositeOperation = 'lighter';
+      for (i = 0; i < lights.length; i++) { p = lights[i]; p.x += (p.vx + Math.sin(ts / 9000 + p.ph) * 8) * dt; p.y += (p.vy + Math.cos(ts / 11000 + p.ph) * 6) * dt;
+        if (p.x < -p.r) p.x = W + p.r; if (p.x > W + p.r) p.x = -p.r; if (p.y < -p.r) p.y = H + p.r; if (p.y > H + p.r) p.y = -p.r;
+        ctx.filter = 'none'; a = p.a * (.75 + .25 * Math.sin(ts / 2600 + p.ph));
+        ctx.globalAlpha = a; ctx.fillStyle = p.warm ? 'rgba(232,132,58,1)' : 'rgba(237,230,214,1)';
+        var g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r); g.addColorStop(0, p.warm ? 'rgba(232,132,58,.55)' : 'rgba(237,230,214,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2); }
+      ctx.globalCompositeOperation = 'source-over';
+      /* дым */
+      for (i = 0; i < smoke.length; i++) { p = smoke[i]; p.x += (p.vx + Math.sin(ts / 6000 + p.ph) * 10) * dt; p.y += p.vy * dt;
+        if (p.y < -p.r) { p.y = H + p.r; p.x = rnd(0, W); } if (p.x < -p.r) p.x = W + p.r; if (p.x > W + p.r) p.x = -p.r;
+        blob(p.x, p.y, p.r, p.a * (.8 + .2 * Math.sin(ts / 3000 + p.ph))); }
+      /* дальняя пыль */
+      ctx.fillStyle = '#EDE6D6';
+      for (i = 0; i < far.length; i++) { p = far[i]; p.x += (p.vx + Math.sin(ts / 1700 + p.ph) * 5) * dt; p.y += (p.vy + Math.cos(ts / 2300 + p.ph) * 4) * dt;
+        if (p.x > W + 10) p.x = -10; if (p.x < -10) p.x = W + 10; if (p.y > H + 10) p.y = -10; if (p.y < -10) p.y = H + 10;
+        ctx.globalAlpha = p.a * (.7 + .3 * Math.sin(ts / 900 + p.ph)); ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill(); }
+      /* ближняя пыль: мягкая, крупнее, быстрее */
+      for (i = 0; i < near.length; i++) { p = near[i]; p.x += (p.vx + Math.sin(ts / 1300 + p.ph) * 9) * dt; p.y += (p.vy + Math.cos(ts / 1900 + p.ph) * 7) * dt;
+        if (p.x > W + 20) p.x = -20; if (p.x < -20) p.x = W + 20; if (p.y > H + 20) p.y = -20; if (p.y < -20) p.y = H + 20;
+        blob(p.x, p.y, p.r * 2.2, p.a * (.6 + .4 * Math.sin(ts / 700 + p.ph))); }
+      /* угольки со свечением */
+      ctx.globalCompositeOperation = 'lighter';
+      for (i = 0; i < E.length; i++) { var e = E[i]; e.t += dt; e.y -= e.vy * dt; e.x += (e.vx + Math.sin(ts / 500 + e.ph) * 16) * dt;
+        var f = Math.min(1, e.t / .8) * Math.max(0, Math.min(1, (e.life - e.t) / 1.2));   /* разгорается и гаснет */
+        if (e.t > e.life || e.y < -10) { E[i] = ember(false); continue; }
+        var fl = .55 + .45 * Math.sin(ts / 80 + e.ph * 3);
+        ctx.globalAlpha = e.a * f * fl * .35; ctx.fillStyle = '#E8843A'; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 4, 0, 6.283); ctx.fill();   /* ореол */
+        ctx.globalAlpha = e.a * f * fl; ctx.fillStyle = fl > .8 ? '#FFD59A' : '#E8843A'; ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, 6.283); ctx.fill(); }
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(frame);
+    }
+    function start(){ if (run) return; run = true; if (!W) seed(); last = 0; playVid(); if (!raf) raf = requestAnimationFrame(frame); }
+    function stop(){ run = false; pauseVid(); }
+    function update(){ if (!heroOn && !document.hidden) start(); else stop(); }
+    if (hero && 'IntersectionObserver' in window) new IntersectionObserver(function(en){ heroOn = en[0].isIntersecting; update(); }, { threshold: 0 }).observe(hero);
+    else { heroOn = false; update(); }
+    document.addEventListener('visibilitychange', update);
+    var rt; window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(function(){ small = window.matchMedia('(max-width: 959px)').matches; seed(); }, 150); });
+  })();
+  /* @FX:atmo end */
+
+/* @FX:final-hud-lock start */
+  /* 08 Финал: четыре HUD-скобки срываются с углов экрана и защёлкиваются вокруг «Написать в MAX».
+     Позиция только left/top — transform держит CSS-анимация bMark. Одна величина t на скобку: 0 — по углам, 1 — на кнопке;
+     тикер каждый кадр смешивает живые «дом» и «цель», поэтому скобки едут вместе с кнопкой при доскролле, ресайзе
+     и появлении .rv. Дом считаем от --frame (rect при scale(0) до is-ready даёт ложное место для tr/bl/br).
+     Без GSAP, при reduce или без скобок — ничего не делаем: скобки остаются по углам, блок виден целиком. */
+  (function(){
+    var cta = document.querySelector('#join .final-cta .btn-primary');
+    var marks = ['tl','tr','bl','br'].map(function(c){ return document.querySelector('.hud-mark.' + c); });
+    if (!hasGsap || reduce || !cta || marks.indexOf(null) > -1) return;
+    var hud = marks[0].parentNode, root = document.documentElement, fab = document.querySelector('.fab');
+    var GAP = 10;                                          /* зазор между кнопкой и скобкой */
+    function tok(){ return parseFloat(getComputedStyle(root).getPropertyValue('--frame')) || 20; }
+    var d0 = marks[0].offsetTop - tok();                   /* сдвиг скобки от --frame, читаем из вёрстки (calc(var(--frame) - 6px)) */
+    var st = [{t:0},{t:0},{t:0},{t:0}], on = false, locked = false, last = [], flashT = null;
+    function home(){
+      var e = tok() + d0, s = marks[0].offsetWidth, W = hud.clientWidth, H = hud.clientHeight;
+      return [[e, e], [W - e - s, e], [e, H - e - s], [W - e - s, H - e - s]];
+    }
+    function target(){
+      var r = cta.getBoundingClientRect(), s = marks[0].offsetWidth;
+      var l = r.left - GAP, t = r.top - GAP, rr = r.right + GAP - s, b = r.bottom + GAP - s;
+      return [[l, t], [rr, t], [l, b], [rr, b]];
+    }
+    function tick(){
+      var h = home(), g = target();
+      marks.forEach(function(m, i){
+        var k = st[i].t, x = (h[i][0] + (g[i][0] - h[i][0]) * k).toFixed(1), y = (h[i][1] + (g[i][1] - h[i][1]) * k).toFixed(1);
+        if (last[i] !== x + '/' + y) { last[i] = x + '/' + y; m.style.left = x + 'px'; m.style.top = y + 'px'; }
+      });
+    }
+    function paint(c){ marks.forEach(function(m){ m.style.borderColor = c; }); }
+    function engage(){ if (on) return; on = true; last = []; marks.forEach(function(m){ m.style.right = 'auto'; m.style.bottom = 'auto'; }); gsap.ticker.add(tick); }
+    function release(){ on = false; gsap.ticker.remove(tick); marks.forEach(function(m){ m.style.left = m.style.top = m.style.right = m.style.bottom = ''; }); paint(''); }
+    function flash(){                                      /* один удар: красный на 0,3 с, потом жёстко обратно в кость */
+      paint('#C8102E');
+      if (flashT) flashT.kill();
+      flashT = gsap.delayedCall(.3, function(){ paint(''); });
+    }
+    function lock(){
+      if (locked) return; locked = true;
+      engage();
+      if (fab) { fab.classList.add('is-quick'); fab.classList.add('is-off'); }
+      gsap.to(st, { t: 1, duration: .55, ease: 'power3.inOut', stagger: .035, overwrite: true, onComplete: flash });
+    }
+    function unlock(){
+      if (!locked) return; locked = false;
+      if (flashT) flashT.kill();
+      paint('');
+      if (fab) fab.classList.remove('is-off');
+      gsap.to(st, { t: 0, duration: .45, ease: 'power3.inOut', stagger: { each: .035, from: 'end' }, overwrite: true, onComplete: release });
+    }
+    ScrollTrigger.create({ trigger: cta, start: 'top 80%', end: 'bottom -20%', onEnter: lock, onEnterBack: lock, onLeave: unlock, onLeaveBack: unlock });
+  })();
+  /* @FX:final-hud-lock end */
+
+  if (hasGsap) { if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ ScrollTrigger.refresh(); }); window.addEventListener('load', function(){ ScrollTrigger.refresh(); }); }
+});
+</script>
+<!-- @BLOCKS_JS:end -->
+
+<script>
+(function(){
+  var body   = document.body;
+  var intro  = document.querySelector('.v-intro');
+  var loop   = document.querySelector('.v-loop');
+  var tcEl   = document.querySelector('[data-tc]');
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var small  = window.matchMedia && matchMedia('(max-width: 699px)').matches;
+
+  var HIT_T = 2.95;      /* секунда удара герба в заставке — момент включения HUD */
+  var FPS = 24;
+  var booted = false, loopStarted = false, t0 = 0;
+
+  function pad(n){ return (n < 10 ? '0' : '') + n; }
+
+  /* --- включение HUD --- */
+  function boot(){
+    if (booted) return; booted = true;
+    t0 = Date.now();
+    requestAnimationFrame(function(){
+      body.classList.remove('is-cinema');
+      body.classList.add('is-ready');
+    });
+  }
+
+  /* --- петля --- */
+  function startLoop(){
+    if (loopStarted) return; loopStarted = true;
+    if (!loop.getAttribute('src')) { loop.src = loop.getAttribute(small ? 'data-src-sm' : 'data-src-lg'); loop.load(); }
+    loop.addEventListener('playing', function(){
+      loop.classList.add('is-on');
+      body.classList.add('has-intro');
+      setTimeout(function(){
+        if (intro) { intro.classList.remove('is-on'); try { intro.pause(); intro.removeAttribute('src'); intro.load(); } catch(e){} }
+      }, 700);
+    }, { once:true });
+    var p = loop.play();
+    if (p && p.catch) p.catch(function(){ /* автоплей заблокирован — остаётся постер */ });
+  }
+
+  /* --- таймкод кино --- */
+  function tcTick(){
+    if (booted) return;
+    var t = intro && isFinite(intro.currentTime) ? intro.currentTime : 0;
+    var s = Math.floor(t), f = Math.floor((t - s) * FPS);
+    if (tcEl) tcEl.textContent = pad(Math.floor(s/3600)) + ':' + pad(Math.floor(s/60)%60) + ':' + pad(s%60) + ':' + pad(f);
+    requestAnimationFrame(tcTick);
+  }
+
+  /* --- телеметрия после включения --- */
+  var timeEl = document.querySelector('[data-tele="time"]');
+  function teleTick(){
+    if (timeEl && booted) {
+      var s = Math.floor((Date.now() - t0) / 1000);
+      timeEl.textContent = 'T+ ' + pad(Math.floor(s/3600)) + ':' + pad(Math.floor(s/60)%60) + ':' + pad(s%60);
+    }
+  }
+  setInterval(teleTick, 1000);
+  if (!reduce) {
+    var altEl = document.querySelector('[data-tele="alt"]');
+    var spdEl = document.querySelector('[data-tele="spd"]');
+    var alt = 118, spd = 84;
+    setInterval(function(){
+      alt = Math.max(96, Math.min(142, alt + Math.round((Math.random() - .5) * 5)));
+      spd = Math.max(71, Math.min(97,  spd + Math.round((Math.random() - .5) * 4)));
+      if (altEl) altEl.textContent = alt;
+      if (spdEl) spdEl.textContent = spd;
+    }, 900);
+  }
+
+  /* --- сценарий --- */
+  if (reduce) { boot(); return; }
+
+  loop.src = loop.getAttribute(small ? 'data-src-sm' : 'data-src-lg');
+  loop.load();
+
+  if (small) {
+    /* телефон: без заставки, сразу петля и HUD */
+    if (intro) { intro.remove(); intro = null; }
+    startLoop(); boot();
+    return;
+  }
+
+  /* десктоп: заставка один раз → удар герба включает HUD → петля */
+  intro.src = intro.getAttribute('data-src');
+  intro.load();
+  intro.addEventListener('playing', function(){
+    intro.classList.add('is-on');
+    body.classList.add('has-intro');
+    requestAnimationFrame(tcTick);
+  }, { once:true });
+  intro.addEventListener('timeupdate', function(){
+    if (intro.currentTime >= HIT_T) boot();
+    if (isFinite(intro.duration) && intro.duration - intro.currentTime <= 0.45) startLoop();
+  });
+  intro.addEventListener('ended', function(){ startLoop(); boot(); });
+  intro.addEventListener('error', function(){ startLoop(); boot(); });
+
+  var ip = intro.play();
+  if (ip && ip.catch) ip.catch(function(){ startLoop(); boot(); });
+
+  /* страховки: заставка не пошла за 2,5 с — включаемся без неё; в любом случае не позже 7 с */
+  setTimeout(function(){ if (!intro.currentTime) { startLoop(); boot(); } }, 2500);
+  setTimeout(function(){ startLoop(); boot(); }, 7000);
+})();
+</script>

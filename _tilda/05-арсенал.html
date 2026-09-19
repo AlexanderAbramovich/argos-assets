@@ -1,0 +1,44 @@
+<!-- T123: блок 05 Арсенал. Отступы 0, фон нет -->
+<section class="sec" id="arsenal">
+  <div class="sec-in">
+    <div class="sec-idx">05 / Арсенал</div>
+    <div class="stage" data-mv="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/3d/drone.glb">
+      <div class="stage-sticky">
+        <div class="stage-title">
+          <h2 class="h2">Наш арсенал</h2>
+          <p class="small"><span class="only-desk">FPV-дрон&nbsp;— главный инструмент батальона. Крути страницу: дрон собирается и&nbsp;поворачивается, его можно покрутить и&nbsp;мышью</span><span class="only-touch">FPV-дрон&nbsp;— главный инструмент батальона. Дрон собирается сам и&nbsp;крутится, его можно покрутить и&nbsp;пальцем</span></p>
+        </div>
+        <div class="media stage-media mv-wrap">
+          <model-viewer class="mv" src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/3d/drone.glb?v=4" alt="3D-модель FPV-дрона АРГОС"
+            animation-name="assemble" camera-controls touch-action="pan-y" disable-zoom disable-pan interaction-prompt="none"
+            shadow-intensity="0" exposure="1.35" environment-image="neutral"
+            camera-orbit="35deg 68deg 76%" camera-target="0m 0.14m 0m" min-camera-orbit="auto 30deg 36%" max-camera-orbit="auto 105deg 80%" field-of-view="26deg"
+            loading="lazy" reveal="auto">
+            <button class="hs" tabindex="-1" slot="hotspot-cam" data-position="0.47 -0.02 0" data-normal="1 0 0" data-at="0.56" style="--side:1"><i></i><div class="txt"><b>FPV-камера</b><span>картинка в&nbsp;очки оператора в&nbsp;реальном времени</span></div></button>
+            <button class="hs" tabindex="-1" slot="hotspot-bat" data-position="-0.05 0.15 0" data-normal="0 1 0" data-at="0.68" style="--side:-1"><i></i><div class="txt"><b>Аккумулятор</b><span>6S, до&nbsp;15 минут боевой работы</span></div></button>
+            <button class="hs" tabindex="-1" slot="hotspot-ant" data-position="-0.41 0.16 -0.13" data-normal="0 1 0" data-at="0.80" style="--side:1"><i></i><div class="txt"><b>Антенны</b><span>устойчивая связь на&nbsp;дистанции</span></div></button>
+            <button class="hs" tabindex="-1" slot="hotspot-motor" data-position="0.4 -0.05 -0.44" data-normal="0 1 0" data-at="0.91" style="--side:1"><i></i><div class="txt"><b>Моторы и&nbsp;винты</b><span>скорость до&nbsp;150&nbsp;км/ч, точный заход на&nbsp;цель</span></div></button>
+          </model-viewer>
+          <img class="mv-fallback" src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/gen/drone-turntable-start.webp" alt="FPV-дрон АРГОС" loading="lazy">
+        </div>
+        <div class="stage-hint" aria-hidden="true">Скролл = сборка и&nbsp;поворот · мышью можно крутить</div>
+      </div>
+    </div>
+    <!-- подписи к деталям для телефона (на десктопе — хотспоты на модели) -->
+    <div class="callouts-m stage-list">
+          <div class="callout"><div class="txt"><b>FPV-камера</b><span>картинка в&nbsp;очки оператора в&nbsp;реальном времени</span></div></div>
+          <div class="callout"><div class="txt"><b>Аккумулятор</b><span>6S, до&nbsp;15 минут боевой работы</span></div></div>
+          <div class="callout"><div class="txt"><b>Антенны</b><span>устойчивая связь на&nbsp;дистанции</span></div></div>
+          <div class="callout"><div class="txt"><b>Моторы и&nbsp;винты</b><span>скорость до&nbsp;150&nbsp;км/ч, точный заход на&nbsp;цель</span></div></div>
+    </div>
+
+    <div class="drones">
+      <article class="drone rv"><div class="media"><img src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/gen/drone-turntable-start.webp" alt="" loading="lazy" onerror="this.parentNode.classList.add('is-missing')"></div><div class="drone-body"><h3>FPV-дрон</h3><p>Скоростной квадрокоптер с&nbsp;управлением от&nbsp;первого лица, применяется как дрон-камикадзе для&nbsp;точечных ударов</p></div></article>
+      <article class="drone rv"><div class="media"><img src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/gen/card-mavic.webp" alt="" loading="lazy" onerror="this.parentNode.classList.add('is-missing')"></div><div class="drone-body"><h3>Мавик</h3><p>Складной дрон, используется для&nbsp;разведки и&nbsp;корректировки огня</p></div></article>
+      <article class="drone rv"><div class="media"><img src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/gen/card-geran.webp" alt="" loading="lazy" onerror="this.parentNode.classList.add('is-missing')"></div><div class="drone-body"><h3>Герань-1</h3><p>Барражирующий боеприпас дальнего действия (до&nbsp;900&nbsp;км) с&nbsp;боевой частью 15&nbsp;кг, применяется для&nbsp;ударов по&nbsp;тыловым объектам</p></div></article>
+      <article class="drone rv"><div class="media"><img src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/gen/card-kub.webp" alt="" loading="lazy" onerror="this.parentNode.classList.add('is-missing')"></div><div class="drone-body"><h3>Куб</h3><p>Бесшумный барражирующий боеприпас («Калашников»), дальность до&nbsp;100+&nbsp;км, есть версии с&nbsp;ИИ и&nbsp;режимом «свободного охотника»</p></div></article>
+      <article class="drone rv"><div class="media"><img src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/gen/card-molniya.webp" alt="" loading="lazy" onerror="this.parentNode.classList.add('is-missing')"></div><div class="drone-body"><h3>Молния</h3><p>Дрон-камикадзе самолётного типа, запускается с&nbsp;катапульты, несёт заряды от&nbsp;РПГ или мины</p></div></article>
+      <article class="drone rv"><div class="media"><img src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/gen/card-orlan.webp" alt="" loading="lazy" onerror="this.parentNode.classList.add('is-missing')"></div><div class="drone-body"><h3>Орлан-10</h3><p>Разведывательный БПЛА с&nbsp;временем полёта до&nbsp;16&nbsp;часов, решает задачи разведки, корректировки огня и&nbsp;ретрансляции связи</p></div></article>
+    </div>
+  </div>
+</section>

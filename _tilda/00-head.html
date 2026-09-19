@@ -1,0 +1,811 @@
+<!-- Настройки страницы → Дополнительно → HTML-код внутрь head (или Настройки сайта → Ещё) -->
+<meta name="theme-color" content="#0A0A0A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script>document.documentElement.className += ' js';</script>
+<style>
+/* ============================================================
+   АРГОС — хиро: A «HUD» × C «кино»
+   0–3 с: летербокс, заставка, таймкод. Удар герба → HUD включается.
+   ============================================================ */
+:root{
+  --ink:#0A0A0A;
+  --ink-2:#111111;
+  --bone:#EDE6D6;
+  --red:#C8102E;
+  --wine:#5A0F18;
+
+  --bone-90:rgba(237,230,214,.9);
+  --bone-75:rgba(237,230,214,.75);
+  --bone-60:rgba(237,230,214,.6);
+  --bone-40:rgba(237,230,214,.4);
+  --bone-16:rgba(237,230,214,.16);
+  --red-50:rgba(200,16,46,.5);
+  --red-30:rgba(200,16,46,.3);
+
+  --frame:20px;
+  --mark:22px;
+  --gutter:clamp(22px,4vw,56px);
+  --bar:clamp(56px,calc((100svh - 100vw / 2.39) / 2),16svh);
+
+  --font-display:'Oswald',Impact,sans-serif-condensed,sans-serif;
+  --font-text:'Golos Text',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (max-width:699px){
+  :root{ --frame:10px; --mark:18px; }
+}
+
+*,*::before,*::after{ box-sizing:border-box; }
+html{ color-scheme:dark; -webkit-text-size-adjust:100%; }
+body{
+  margin:0;
+  background:var(--ink);
+  color:var(--bone);
+  font-family:var(--font-text);
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+img,video,svg{ display:block; max-width:100%; }
+a{ color:inherit; text-decoration:none; }
+ul{ margin:0; padding:0; list-style:none; }
+h1,h2,p{ margin:0; }
+::selection{ background:var(--red); color:var(--bone); }
+:focus-visible{ outline:2px solid var(--bone); outline-offset:3px; }
+.vh{ position:absolute!important; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+/* ---------- HUD-слой поверх всей страницы ---------- */
+.hud{ position:fixed; inset:0; z-index:50; pointer-events:none; overflow:hidden; }
+.hud-frame{ display:none; }
+.hud-mark{ position:absolute; width:var(--mark); height:var(--mark); border:2px solid var(--bone-75); }
+.hud-mark.tl{ top:calc(var(--frame) - 6px); left:calc(var(--frame) - 6px); border-right:0; border-bottom:0; transform-origin:0 0; }
+.hud-mark.tr{ top:calc(var(--frame) - 6px); right:calc(var(--frame) - 6px); border-left:0; border-bottom:0; transform-origin:100% 0; }
+.hud-mark.bl{ bottom:calc(var(--frame) - 6px); left:calc(var(--frame) - 6px); border-right:0; border-top:0; transform-origin:0 100%; }
+.hud-mark.br{ bottom:calc(var(--frame) - 6px); right:calc(var(--frame) - 6px); border-left:0; border-top:0; transform-origin:100% 100%; }
+.hud-grain{
+  position:absolute; inset:-8%;
+  background:url("data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22180%22 height=%22180%22%3E%3Cfilter id=%22g%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.92%22 numOctaves=%222%22 stitchTiles=%22stitch%22/%3E%3CfeColorMatrix type=%22saturate%22 values=%220%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23g)%22/%3E%3C/svg%3E") repeat;
+  background-size:180px 180px;
+  opacity:.06;
+}
+.hud-scan{
+  position:absolute; inset:0;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.2) 2px 3px);
+  opacity:.6;
+}
+
+/* ---------- Плавающая кнопка MAX (заметка Макса) ---------- */
+.fab{
+  position:fixed; z-index:60;
+  right:calc(var(--frame) + 14px); bottom:calc(var(--frame) + 14px);
+  display:inline-flex; align-items:center; gap:9px;
+  padding:11px 16px 12px 14px;
+  background:var(--red); color:var(--bone);
+  font-family:var(--font-display); font-weight:600; font-size:15px; line-height:1;
+  letter-spacing:.1em; text-transform:uppercase;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+  transition:background-color .15s ease, color .15s ease, transform .15s ease, opacity .5s ease;
+}
+.fab:hover{ background:var(--bone); color:var(--ink); }
+.fab-dot{ width:8px; height:8px; border-radius:50%; background:currentColor; animation:blink 1.6s steps(1,end) infinite; }
+@media (max-width:699px){
+  .fab{ right:calc(var(--frame) + 8px); bottom:calc(var(--frame) + 8px); padding:12px 14px 13px 12px; font-size:14px; }
+}
+
+/* ---------- Хиро ---------- */
+.hero{
+  position:relative; isolation:isolate; overflow:clip;
+  min-height:100vh; min-height:100svh;
+  display:flex; flex-direction:column; justify-content:flex-end;
+  background:var(--ink);
+}
+.hero-poster,.hero-video{
+  position:absolute; inset:0; z-index:0;
+  width:100%; height:100%; object-fit:cover; object-position:50% 45%;
+}
+.hero-poster{ transition:opacity .4s ease; }
+.has-intro .hero-poster{ opacity:0; }
+.hero-video{ opacity:0; transition:opacity .6s ease; filter:saturate(.72) contrast(1.06); }
+.hero-video.v-intro{ z-index:1; filter:none; }
+.hero-video.v-loop{ z-index:2; }
+.hero-video.is-on{ opacity:1; }
+.hero-shade{
+  position:absolute; inset:0; z-index:3;
+  background:
+    linear-gradient(to top, rgba(10,10,10,.96) 0%, rgba(10,10,10,.72) 30%, rgba(10,10,10,.22) 58%, rgba(10,10,10,.42) 100%),
+    linear-gradient(to right, rgba(10,10,10,.6) 0%, rgba(10,10,10,0) 62%),
+    radial-gradient(ellipse at 50% 50%, rgba(10,10,10,0) 55%, rgba(10,10,10,.55) 100%);
+  transition:opacity .9s ease;
+}
+.is-cinema .hero-shade{ opacity:.3; }
+
+/* ---------- Кино-слой: летербокс, кикер, таймкод ---------- */
+.cine{ position:absolute; inset:0; z-index:5; pointer-events:none; }
+.cine-bar{
+  position:absolute; left:0; right:0; height:var(--bar);
+  background:var(--ink);
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .8s cubic-bezier(.7,0,.2,1);
+}
+.cine-bar--top{ top:0; }
+.cine-bar--bottom{ bottom:0; flex-direction:column; gap:10px; }
+.cine-emblem{
+  height:clamp(28px,calc(var(--bar) * .38),48px); width:auto;
+  filter:grayscale(1) sepia(.35) brightness(1.12) contrast(1.05); opacity:.9;
+}
+.cine-motto{ font-size:11px; line-height:1.4; letter-spacing:.06em; color:var(--bone-60); text-align:center; }
+.cine-line{ position:relative; width:1px; height:26px; background:var(--bone-16); overflow:hidden; }
+.cine-line::after{
+  content:""; position:absolute; left:0; top:0; width:100%; height:100%;
+  background:var(--bone); transform:translateY(-100%);
+  animation:drip 2.6s cubic-bezier(.6,0,.3,1) infinite;
+}
+@keyframes drip{ to{ transform:translateY(100%); } }
+.cine-kicker{
+  position:absolute; left:var(--gutter); right:var(--gutter);
+  top:calc(var(--bar) + 26px);
+  text-align:center;
+  font-size:10.5px; line-height:1.7; font-weight:500;
+  letter-spacing:.28em; text-transform:uppercase;
+  color:var(--bone); text-shadow:0 1px 2px rgba(0,0,0,.95), 0 0 6px rgba(0,0,0,.9), 0 0 18px rgba(0,0,0,.8);
+  opacity:0; transition:opacity 1.2s ease .5s;
+}
+.is-cinema.has-intro .cine-kicker{ opacity:1; }
+@media (max-width:1100px){ .cine-kicker{ top:calc(var(--bar) + 44px); } }   /* планшет: не сталкиваться с таймкодом справа */
+.cine-kicker span + span::before{ content:"·"; margin:0 .9em; }
+.cine-tc{
+  position:absolute; right:calc(var(--gutter)); top:calc(var(--bar) + 18px);
+  font-family:var(--font-mono); font-size:11px; line-height:1; letter-spacing:.08em;
+  color:var(--red); font-variant-numeric:tabular-nums;
+  transition:opacity .3s ease;
+}
+/* после включения HUD: полосы уезжают, кикер и таймкод гаснут */
+.is-ready .cine-bar--top{ transform:translateY(-100%); }
+.is-ready .cine-bar--bottom{ transform:translateY(100%); }
+.is-ready .cine-kicker,.is-ready .cine-tc{ opacity:0; transition:opacity .25s ease; }
+.is-ready .cine{ transition:visibility 0s 1s; visibility:hidden; }
+
+/* горизонт + прицел */
+.hero-horizon{
+  position:absolute; z-index:4; left:var(--frame); right:var(--frame); top:50%;
+  height:1px; background:var(--red-50);
+  box-shadow:0 0 10px rgba(200,16,46,.35);
+}
+.hero-reticle{
+  position:absolute; z-index:4; left:50%; top:50%;
+  width:min(240px,56vw); height:auto;
+  transform:translate(-50%,-50%);
+  color:var(--bone-16);
+}
+
+/* навигация */
+.nav{
+  position:absolute; z-index:6; left:0; right:0; top:var(--frame);
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:14px var(--gutter);
+}
+.brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+.brand-emblem{ width:34px; height:34px; object-fit:contain; flex:none; filter:drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.brand-name{
+  font-family:var(--font-display); font-weight:700; font-size:21px; line-height:1;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--bone);
+}
+.brand-rule{ width:1px; height:16px; background:var(--bone-40); flex:none; }
+.brand-unit{ font-size:13px; line-height:1; color:var(--bone-60); white-space:nowrap; letter-spacing:.01em; }
+.btn-ghost{
+  flex:none;
+  display:inline-flex; align-items:center;
+  padding:9px 14px 10px;
+  border:1px solid var(--bone-40);
+  font-size:13px; font-weight:500; line-height:1; letter-spacing:.01em;
+  color:var(--bone);
+  transition:background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.btn-ghost:hover{ background:var(--bone); color:var(--ink); border-color:var(--bone); }
+@media (max-width:479px){ .brand-rule,.brand-unit{ display:none; } .brand-emblem{ width:30px; height:30px; } }
+
+/* телеметрия */
+.tele{
+  position:absolute; z-index:6;
+  font-family:var(--font-mono); font-size:11px; line-height:1.55; font-weight:400;
+  letter-spacing:.08em; color:var(--bone-60);
+  white-space:nowrap;
+}
+@media (min-width:1200px){ .tele{ font-size:12px; } }
+.tele-tl{ top:calc(var(--frame) + 76px); left:var(--gutter); }
+.tele-tr{ top:calc(var(--frame) + 72px); right:var(--gutter); text-align:right; }
+.tele-bl{ bottom:calc(var(--frame) + 14px); left:var(--gutter); }
+.tele-br{ bottom:calc(var(--frame) + 18px); right:calc(var(--gutter) + 132px); text-align:right; font-family:var(--font-text); font-size:13px; letter-spacing:0; color:var(--bone-60); }
+.tele .v{ color:var(--bone-90); }
+.tele .rec{ color:var(--red); display:inline-block; transform:translateY(-1px); animation:blink 1.1s steps(1,end) infinite; }
+@keyframes blink{ 50%{ opacity:.15; } }
+@media (max-width:699px){
+  .tele-bl,.tele-br{ display:none; }
+  .tele-tl{ top:calc(var(--frame) + 66px); }
+  .tele-tr{ top:calc(var(--frame) + 66px); }
+  .tele .hide-sm{ display:none; }
+}
+
+/* копи */
+.hero-copy{
+  position:relative; z-index:6;
+  width:100%;
+  padding:120px var(--gutter) calc(var(--frame) + 56px);
+}
+@media (max-width:699px){ .hero-copy{ padding-bottom:calc(var(--frame) + 70px); padding-top:150px; } }
+.hero-copy-in{ max-width:760px; }
+
+.hero-title{ font-weight:400; line-height:1; }
+.hero-kicker{
+  display:block;
+  font-family:var(--font-display); font-weight:500;
+  font-size:clamp(15px,1.6vw,23px); line-height:1.2;
+  letter-spacing:.06em; text-transform:uppercase;
+  color:var(--bone-75);
+  max-width:24em;
+}
+.hero-word-row{ position:relative; margin-top:2px; }
+.hero-word{
+  display:block;
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(108px,23vw,280px); line-height:.86;
+  letter-spacing:-.005em; text-transform:uppercase;
+  color:var(--bone);
+  margin:0 -.06em -.1em -.02em; padding:0 .06em .1em 0;   /* маска режет по боксу строки — даём место выносам «О»/«С» снизу и справа */
+  /* потёртость: запечённая маска, дёшево для GPU */
+  -webkit-mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/img/grunge-mask.png") 0 0/1024px 512px repeat;
+          mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/img/grunge-mask.png") 0 0/1024px 512px repeat;
+}
+@media (max-width:699px){ .hero-word{ -webkit-mask-size:560px 280px; mask-size:560px 280px; } }  /* крап пропорционально буквам */
+@media (max-width:699px){   /* телефон: 16:9 не зумим в кадр — видео в верхних 62 % экрана, снизу растворяется в чёрный под текст */
+  .hero-poster,.hero-video{ height:62svh; bottom:auto; object-position:50% 40%;
+    -webkit-mask-image:linear-gradient(to bottom, #000 62%, transparent 100%); mask-image:linear-gradient(to bottom, #000 62%, transparent 100%); }
+}
+.hero-plaque{
+  display:inline-block;
+  margin-top:10px;
+  padding:4px 14px 5px 12px;
+  background:var(--red); color:var(--bone);
+  font-family:var(--font-display); font-weight:600;
+  font-size:clamp(17px,1.8vw,26px); line-height:1.15;
+  letter-spacing:.08em; word-spacing:.12em; text-transform:uppercase;
+  clip-path:polygon(0 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
+}
+.hero-lead{
+  margin-top:22px;
+  font-size:clamp(15px,1.15vw,18px); line-height:1.5;
+  color:var(--bone-90);
+  max-width:36em;
+}
+.hero-points{ margin-top:14px; display:grid; gap:7px; max-width:36em; }
+.hero-points li{
+  position:relative; padding-left:18px;
+  font-size:clamp(14px,1.05vw,16px); font-weight:500; line-height:1.45;
+  color:var(--bone-90);
+}
+.hero-points li::before{ content:""; position:absolute; left:0; top:.52em; width:7px; height:7px; background:var(--red); }
+.hero-cta{ margin-top:26px; display:flex; flex-wrap:wrap; align-items:center; gap:14px 20px; }
+.btn-primary{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:12px 24px 13px;
+  background:var(--red); color:var(--bone);
+  font-family:var(--font-display); font-weight:600;
+  font-size:clamp(17px,1.3vw,20px); line-height:1;
+  letter-spacing:.08em; text-transform:uppercase;
+  transition:background-color .15s ease, color .15s ease, transform .1s ease;
+}
+.btn-primary:hover{ background:var(--bone); color:var(--ink); }
+.btn-primary:active{ transform:translateY(1px); }
+.hero-note{ font-size:13px; line-height:1.4; color:var(--bone-60); max-width:22em; }
+
+/* @BLOCKS_CSS:start */
+/* ============================================================
+   БЛОКИ 2–8. Система: секция = «экран» HUD.
+   Один мелкий элемент на секцию — индекс в моно. Остальное — тип и воздух.
+   ============================================================ */
+.sec{
+  position:relative;
+  padding:clamp(72px,9vw,128px) var(--gutter);
+  border-top:1px solid rgba(237,230,214,.08);
+  background:var(--ink);
+}
+.sec--alt{ background:var(--ink-2); }
+.sec-in{ max-width:1240px; margin:0 auto; }
+.sec-idx{
+  display:inline-flex; align-items:center; gap:10px;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--bone-60);
+  margin-bottom:clamp(20px,2.6vw,34px);
+}
+.sec-idx::before{ content:""; width:7px; height:7px; background:var(--red); }
+.h2{
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(34px,4.6vw,68px); line-height:.98;
+  letter-spacing:-.005em; text-transform:uppercase;
+  color:var(--bone);
+  text-wrap:balance;
+}
+.h2 em{ font-style:normal; color:var(--red); }
+.lead{ font-size:clamp(16px,1.2vw,19px); line-height:1.55; color:var(--bone-90); max-width:34em; }
+.small{ font-size:13px; line-height:1.45; color:var(--bone-60); }
+.btn-primary--sm{ padding:11px 20px 12px; font-size:16px; }
+.btn-line{
+  display:inline-flex; align-items:center; gap:10px;
+  padding:11px 18px 12px;
+  border:1px solid var(--bone-40); color:var(--bone);
+  font-family:var(--font-display); font-weight:600; font-size:16px; line-height:1;
+  letter-spacing:.08em; text-transform:uppercase;
+  transition:background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.btn-line:hover{ background:var(--bone); color:var(--ink); border-color:var(--bone); }
+.btn-line .ico{ width:16px; height:16px; }
+
+/* медиа-заглушки: пока файла нет — рамка и имя файла; появился — картинка */
+.media{ position:relative; overflow:hidden; background:#151515; }
+.media img,.media video{ width:100%; height:100%; object-fit:cover; }
+.media.is-missing::before{
+  content:attr(data-ph); position:absolute; inset:0; z-index:1;
+  display:flex; align-items:flex-end; padding:10px 12px;
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.08em; color:var(--bone-40);
+  border:1px dashed rgba(237,230,214,.22);
+  background:
+    linear-gradient(135deg, transparent 49.5%, rgba(237,230,214,.12) 49.5%, rgba(237,230,214,.12) 50.5%, transparent 50.5%),
+    #141414;
+  white-space:pre-line;
+}
+.media.is-missing img{ visibility:hidden; }
+
+/* видео-скраб (режим Tilda) */
+.media .scrub-video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:none; }
+.media.has-video .scrub-video{ display:block; }
+.media.has-video > img{ visibility:hidden; }
+@media (max-width:959px){ .op-media .scrub-video{ object-fit:cover; } }
+
+/* появление на скролле: тихое */
+.js .rv{ opacity:0; transform:translateY(14px); }
+.js .rv.is-in{ opacity:1; transform:none; transition:opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1); }
+
+/* ---------- 02 Оператор: сцена на чёрном ---------- */
+.sec--black{ background:#000; }
+@media (min-width:960px){ .sec--black{ padding-bottom:0; } }
+.brief-head{ display:grid; gap:20px 56px; align-items:start; }
+@media (min-width:960px){ .brief-head{ grid-template-columns:minmax(0,7fr) minmax(0,5fr); } .brief-head .lead{ padding-top:.5em; } }
+@media (min-width:960px){ .brief-head .h2{ max-width:14ch; } }
+.op-scene{ position:relative; margin-top:clamp(28px,4vw,56px); }
+@media (min-width:960px){ .op-scene.has-frames{ height:260vh; } }
+.op-sticky{ position:relative; }
+@media (min-width:960px){ .op-scene.has-frames .op-sticky{ position:sticky; top:0; min-height:100svh; display:grid; align-items:center; } }
+.op-stage{ position:relative; width:min(100%,1240px); min-width:0; margin:0 auto; padding:0 var(--gutter); }
+@media (min-width:960px){ .op-scene.has-frames .op-stage{ width:100%; max-width:none; padding:0; } }
+.op-media{ position:relative; aspect-ratio:16/9; background:#000; }
+@media (min-width:960px){ .op-scene.has-frames .op-media{ aspect-ratio:auto; height:100svh; } }
+.op-media img,.op-media canvas{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:50% 100%; }
+.op-media img{ position:absolute; }
+.op-media canvas{ display:none; }
+.op-media.has-frames canvas{ display:block; }
+.op-media.has-frames > img{ visibility:hidden; }
+/* появление из темноты: маска по прогрессу (JS ставит --reveal 0→1) */
+.op-media::after{ content:""; position:absolute; inset:0; background:#000; opacity:calc(1 - var(--reveal,1)); pointer-events:none; transition:opacity .2s linear; }
+.op-media.has-frames{ --reveal:0; }   /* кадры есть → до первого скролла сцены оператор в темноте (JS ставит --reveal по прогрессу) */
+.op-callouts .callout .txt{ background:rgba(0,0,0,.72); }
+/* десктоп: плашки на рейках слева/справа (в чёрном поле кадра), линия от якоря до ближней кромки; всё считает JS */
+@media (min-width:960px){
+  .op-callouts .callout .txt{ top:var(--ty,0px); transform:translateY(-50%); width:240px; min-width:0; max-width:none; }
+  @media (max-width:1199px){ .op-callouts .callout .txt{ width:200px; font-size:14px; } }
+  .op-callouts .callout[data-side="r"] .txt{ left:var(--tx,0px); right:auto; }
+  .op-callouts .callout[data-side="l"] .txt{ left:auto; right:calc(-1 * var(--tx,0px)); }
+}
+@media (max-width:959px){
+  .op-scene{ padding:0 var(--gutter); }
+  .op-stage{ padding:0; }
+  .op-media{ aspect-ratio:4/5; }
+  .op-media img,.op-media canvas{ object-fit:cover; }
+  .op-callouts{ display:grid; grid-template-columns:1fr; gap:10px; margin-top:16px; }
+  .op-scene .stage-hint{ display:none; }
+  /* телефон: не скраб, а автопроигрыш при появлении — компактный кадр (голова и плечи), требования списком сразу под ним, зажигаются по очереди */
+  .op-scene.has-frames .op-media{ aspect-ratio:auto; height:min(52svh, 96vw); }
+  .op-scene.has-frames .op-callouts{ display:grid; grid-template-columns:1fr; gap:8px; margin-top:14px; }
+  .op-scene.has-frames .callout{ position:static; margin:0; opacity:0; transform:translateY(8px); transition:opacity .3s ease, transform .3s ease; }
+  .op-scene.has-frames .callout.is-on{ opacity:1; transform:none; }
+  .op-scene.has-frames .callout .txt{ border:1px solid rgba(237,230,214,.18); border-left:2px solid var(--red); background:rgba(255,255,255,.03); padding:8px 12px 9px; font-size:14px; line-height:1.35; }
+  .op-scene.has-frames .callout .txt b{ display:inline; margin:0 6px 0 0; font-size:16px; }
+}
+@media (min-width:960px){ .op-scene .stage-hint{ position:absolute; right:var(--gutter); bottom:calc(var(--frame) + 16px); } .op-scene:not(.has-frames) .callout{ display:none; } .op-scene:not(.has-frames) .stage-hint{ display:none; } }
+
+/* ---------- 03 Доход ---------- */
+.pay-head{ display:grid; gap:14px; }
+.pay-kicker{ font-family:var(--font-display); font-weight:500; font-size:clamp(17px,1.8vw,24px); letter-spacing:.06em; text-transform:uppercase; color:var(--bone-75); }
+.pay-big{
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(40px,9.5vw,150px); line-height:.9; letter-spacing:-.01em;
+  color:var(--bone); white-space:nowrap;
+}
+.pay-big small{ font-size:.42em; letter-spacing:0; color:var(--bone-75); font-weight:500; margin-left:.12em; }
+.pay-plaque{ justify-self:start; }
+.pay-grid{ display:grid; gap:40px 56px; margin-top:clamp(40px,5vw,64px); }
+@media (min-width:960px){ .pay-grid{ grid-template-columns:minmax(0,7fr) minmax(0,5fr); } }
+.h3{
+  font-family:var(--font-display); font-weight:600; font-size:clamp(20px,2vw,26px);
+  letter-spacing:.06em; text-transform:uppercase; color:var(--bone); line-height:1.1;
+}
+.pay-list{ margin-top:18px; border-top:1px solid rgba(237,230,214,.14); }
+.pay-list li{
+  display:grid; grid-template-columns:minmax(150px,42%) 1fr; gap:6px 18px; align-items:baseline;
+  padding:13px 0 14px; border-bottom:1px solid rgba(237,230,214,.14);
+}
+.pay-list b{ font-family:var(--font-display); font-weight:700; font-size:clamp(22px,2.2vw,30px); line-height:1; letter-spacing:-.005em; color:var(--bone); white-space:nowrap; }
+.pay-list span{ font-size:15px; line-height:1.45; color:var(--bone-90); }
+@media (max-width:479px){ .pay-list li{ grid-template-columns:1fr; gap:4px; } .pay-big{ font-size:12.5vw; } }
+.bonus{ margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.bonus li{ padding:14px 14px 15px; border:1px solid rgba(237,230,214,.16); background:rgba(255,255,255,.02); }
+.bonus li:first-child{ border-color:var(--red); }
+.bonus b{ display:block; font-family:var(--font-display); font-weight:700; font-size:clamp(24px,2.4vw,34px); line-height:1; color:var(--bone); }
+.bonus b small{ font-size:.55em; font-weight:500; color:var(--bone-75); }
+.bonus span{ display:block; margin-top:8px; font-size:13.5px; line-height:1.4; color:var(--bone-90); }
+@media (max-width:479px){ .bonus{ grid-template-columns:1fr; } }
+.pay-cta{
+  margin-top:clamp(36px,4vw,56px);
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px 24px;
+  padding:16px 18px; border:1px solid rgba(237,230,214,.16);
+}
+.pay-cta p{ font-size:15px; line-height:1.45; color:var(--bone-90); max-width:44em; }
+
+/* ---------- 04 Специальности ---------- */
+@media (min-width:960px){ .spec-h2{ max-width:18ch; } }
+.spec-grid{ display:grid; gap:14px; margin-top:8px; }
+@media (min-width:640px){ .spec-grid{ grid-template-columns:1fr 1fr; } }
+@media (min-width:1100px){ .spec-grid{ grid-template-columns:repeat(4,1fr); } }
+.spec{ border:1px solid rgba(237,230,214,.14); display:grid; grid-template-rows:auto 1fr; }
+.spec .media{ aspect-ratio:4/3; border-bottom:1px solid rgba(237,230,214,.14); }
+.spec .media img{ filter:saturate(.6) contrast(1.05); transition:filter .3s ease; }
+.spec:hover .media img{ filter:none; }
+.spec-body{ padding:16px 16px 18px; }
+.spec-num{ font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; color:var(--red); }
+.spec h3{ margin:8px 0 0; font-family:var(--font-display); font-weight:600; font-size:22px; line-height:1.05; letter-spacing:.03em; text-transform:uppercase; color:var(--bone); }
+.spec p{ margin-top:10px; font-size:14px; line-height:1.5; color:var(--bone-90); }
+.sec-foot{ margin-top:clamp(28px,3vw,40px); display:flex; flex-wrap:wrap; align-items:center; gap:14px 24px; }
+
+/* ---------- 05 Арсенал: сцена дрона (model-viewer) ---------- */
+.mv-wrap{ background:transparent; }
+.mv{ position:absolute; inset:0; width:100%; height:100%; background:transparent; --poster-color:transparent; --min-hotspot-opacity:0; --progress-bar-color:transparent; --progress-bar-height:0px; }
+.mv-wrap .mv-fallback{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:none; }
+.mv-wrap.is-fallback .mv{ display:none; }
+.mv-wrap.is-fallback .mv-fallback{ display:block; }
+.hs{ display:block; width:14px; height:14px; padding:0; border:0; background:transparent; cursor:default; position:relative; }
+.hs i{ position:absolute; left:3px; top:3px; width:8px; height:8px; border-radius:50%; background:var(--red); box-shadow:0 0 0 4px rgba(200,16,46,.25); opacity:0; transition:opacity .3s ease; }
+.hs .txt{
+  position:absolute; top:50%; transform:translateY(-50%);
+  left:calc(50% + 22px); text-align:left;
+  min-width:210px; max-width:290px;
+  padding:12px 14px 13px; border:1px solid rgba(237,230,214,.3); background:rgba(10,10,10,.8);
+  font-family:var(--font-text); font-size:15px; line-height:1.4; color:var(--bone);
+  opacity:0; transition:opacity .3s ease; pointer-events:none;
+}
+.hs[style*="--side:-1"] .txt,.hs.is-flip .txt{ left:auto; right:calc(50% + 22px); }
+.hs[style*="--side:-1"].is-flip .txt{ left:calc(50% + 22px); right:auto; }
+.hs .txt::before{ content:""; position:absolute; top:50%; width:14px; height:1px; background:var(--bone-60); left:-15px; }
+.hs[style*="--side:-1"] .txt::before,.hs.is-flip .txt::before{ left:auto; right:-15px; }
+.hs[style*="--side:-1"].is-flip .txt::before{ left:-15px; right:auto; }
+.hs .txt{ margin-top:var(--shift,0px); }   /* JS разводит наехавшие плашки по вертикали, все остаются */
+.hs .txt b{ display:block; margin-bottom:3px; font-family:var(--font-display); font-weight:600; font-size:20px; letter-spacing:.06em; text-transform:uppercase; }
+.hs .txt span{ color:var(--bone-75); }
+.hs.is-on i,.hs.is-on .txt{ opacity:1; }
+@media (max-width:959px){ .hs{ display:none; } }
+
+.stage{ position:relative; margin-top:8px; }
+@media (min-width:960px){ .stage.has-frames,.stage.has-mv{ height:260vh; } }
+.stage-sticky{ position:relative; display:grid; align-items:center; overflow:hidden; }
+.stage.has-frames .stage-sticky,.stage.has-mv .stage-sticky{ position:sticky; top:0; min-height:100svh; }
+.stage-media{ position:relative; width:min(100%,1180px); aspect-ratio:16/10; max-height:88svh; margin:0 auto; background:transparent; }
+@media (max-width:959px){
+  .stage-sticky{ position:relative; min-height:0; } .stage-media{ aspect-ratio:1/1; }
+  /* дрон на телефоне: не липкая сцена — компактный бокс, сборка проигрывается сама при появлении, потом медленно крутится */
+  .stage.has-mv{ height:auto; margin:0; }
+  .stage.has-mv .stage-sticky{ position:relative; height:auto; min-height:0; padding:0; overflow:visible; }
+  .stage.has-mv .stage-media{ aspect-ratio:auto; width:100%; height:min(60svh, 100vw); max-height:none; }
+  .stage.has-mv .stage-title{ position:static; margin:0 0 6px; }
+  .stage-list{ margin-top:16px; }
+}
+@media (min-width:960px){ .stage-list{ display:none; } }
+@media (min-width:960px){ .stage.has-mv .stage-media{ width:100%; aspect-ratio:auto; height:100svh; max-height:none; } .stage.has-mv .stage-sticky{ padding:0; } .stage.has-mv{ margin-left:calc(-1 * var(--gutter)); margin-right:calc(-1 * var(--gutter)); } .stage.has-mv .stage-title{ left:var(--gutter); } }
+.stage-media > img,.stage-media canvas{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+.stage-media canvas{ display:none; }
+.stage-media.has-frames canvas{ display:block; }
+.stage-media.has-frames > img{ visibility:hidden; }
+.stage-media.is-missing::before{ content:none; }
+.stage-title{ position:absolute; left:0; top:0; z-index:2; }
+@media (min-width:960px){ .stage.has-mv .stage-title{ top:calc(var(--frame) + 30px); } .stage.has-mv .stage-sticky{ overflow:visible; } }
+.stage-title .h2{ font-size:clamp(28px,3.6vw,52px); }
+.stage-title .small{ margin-top:8px; max-width:30em; }
+.only-touch{ display:none; }
+@media (max-width:959px){ .only-desk{ display:none; } .only-touch{ display:inline; } }
+.callout{
+  position:absolute; z-index:3; left:var(--x); top:var(--y);
+  transform:translate(-50%,-50%);
+  opacity:0; transition:opacity .35s ease;
+  pointer-events:none;
+}
+.callout.is-on{ opacity:1; }
+.callout i{ position:absolute; left:50%; top:50%; width:8px; height:8px; margin:-4px 0 0 -4px; background:var(--red); border-radius:50%; box-shadow:0 0 0 4px rgba(200,16,46,.25); }
+.callout .line{ position:absolute; left:50%; top:50%; height:1px; width:var(--len,110px); background:var(--bone-60); transform-origin:0 50%; transform:rotate(var(--ang,-30deg)); }
+.callout .txt{
+  position:absolute; left:calc(50% + var(--tx,70px)); top:calc(50% + var(--ty,-84px));
+  min-width:210px; max-width:290px;
+  padding:12px 14px 13px; border:1px solid rgba(237,230,214,.3); background:rgba(10,10,10,.78);
+  font-size:15px; line-height:1.4; color:var(--bone);
+}
+.callout .txt b{ display:block; margin-bottom:3px; font-family:var(--font-display); font-weight:600; font-size:20px; letter-spacing:.06em; text-transform:uppercase; }
+.callout .txt span{ color:var(--bone-75); }
+@media (max-width:959px){
+  .stage-title{ position:static; margin-bottom:14px; }
+  .callout{ position:static; transform:none; opacity:1; margin-top:8px; }
+  .callout i,.callout .line{ display:none; }
+  .callout .txt{ position:static; min-width:0; max-width:none; border:0; border-left:2px solid var(--red); background:transparent; padding:2px 0 2px 12px; }
+  .callouts-m{ display:grid; grid-template-columns:1fr 1fr; gap:10px 20px; margin-top:16px; }
+  @media (max-width:600px){ .callouts-m{ grid-template-columns:1fr; } }
+}
+@media (min-width:960px){ .callouts-m{ display:contents; } .stage .callouts-m .callout{ display:none; } .stage:not(.has-frames):not(.has-mv) .stage-hint{ display:none; } }
+.stage-hint{ display:none !important; }
+@media (max-width:959px){ .stage-hint{ display:none; } }
+.drones{ display:grid; gap:14px; margin-top:clamp(32px,4vw,56px); }
+@media (min-width:640px){ .drones{ grid-template-columns:1fr 1fr; } }
+@media (min-width:1100px){ .drones{ grid-template-columns:repeat(3,1fr); } }
+.drone{ border:1px solid rgba(237,230,214,.14); }
+.drone .media{ aspect-ratio:16/10; border-bottom:1px solid rgba(237,230,214,.14); }
+.drone-body{ padding:14px 16px 16px; }
+.drone h3{ margin:0; font-family:var(--font-display); font-weight:600; font-size:22px; letter-spacing:.03em; text-transform:uppercase; color:var(--bone); }
+.drone p{ margin-top:8px; font-size:14px; line-height:1.5; color:var(--bone-90); }
+
+/* ---------- 06 Птички: видеополоса ---------- */
+.reel{ padding-left:0; padding-right:0; }
+.reel .sec-in{ padding:0 var(--gutter); }
+.reel-strip{ display:grid; gap:6px; margin-top:clamp(24px,3vw,40px); }
+@media (min-width:560px){ .reel-strip{ grid-template-columns:1fr 1fr; } }
+@media (min-width:900px){ .reel-strip{ grid-template-columns:repeat(3,1fr); } }
+.reel-strip .media{ aspect-ratio:16/9; }
+.reel-strip .media video{ filter:saturate(.8) contrast(1.05); }
+.reel-tag{
+  position:absolute; left:10px; top:10px; z-index:2;
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; color:var(--bone);
+  padding:4px 7px; background:rgba(10,10,10,.6);
+}
+.reel-tag::before{ content:""; width:6px; height:6px; border-radius:50%; background:var(--red); animation:blink 1.1s steps(1,end) infinite; }
+.reel-head{ display:grid; gap:18px 40px; align-items:end; }
+@media (min-width:900px){ .reel-head{ grid-template-columns:minmax(0,7fr) auto; } }
+.reel-head .lead{ margin-top:14px; }
+
+/* ---------- 07 Шаги ---------- */
+.steps{ display:grid; gap:14px; margin-top:8px; counter-reset:step; }
+@media (min-width:640px){ .steps{ grid-template-columns:1fr 1fr; } }
+@media (min-width:1100px){ .steps{ grid-template-columns:repeat(4,1fr); } }
+.step{ position:relative; border-top:2px solid rgba(237,230,214,.2); padding-top:14px; }
+.step:first-child{ border-top-color:var(--red); }
+.step-num{ font-family:var(--font-display); font-weight:700; font-size:clamp(40px,4.4vw,64px); line-height:.9; color:var(--bone); }
+.step h3{ margin:10px 0 0; font-family:var(--font-display); font-weight:600; font-size:20px; line-height:1.1; letter-spacing:.03em; text-transform:uppercase; color:var(--bone); }
+.step p{ margin-top:8px; font-size:14px; line-height:1.5; color:var(--bone-90); min-height:3em; }
+.step .media{ margin-top:14px; aspect-ratio:4/3; }
+.step .media img{ filter:saturate(.6) contrast(1.05); }
+
+/* ---------- 08 Финал ---------- */
+.final{ padding-bottom:calc(var(--frame) + 40px); }
+.final-grid{ display:grid; gap:28px 56px; align-items:end; }
+@media (min-width:960px){ .final-grid{ grid-template-columns:minmax(0,7fr) minmax(0,5fr); } }
+.final .h2{ font-size:clamp(36px,4.8vw,72px); }
+@media (min-width:960px){ .final .h2{ max-width:16ch; } }
+.final .lead{ margin-top:20px; }
+.final-cta{ display:grid; gap:16px; justify-items:start; }
+.final-cta .btn-primary{ padding:16px 30px 17px; font-size:clamp(18px,1.5vw,22px); }
+.final-meta{ display:grid; gap:4px; font-size:14px; color:var(--bone-75); }
+.final-meta a:hover{ color:var(--bone); text-decoration:underline; }
+.foot{
+  margin-top:clamp(56px,7vw,96px); padding-top:18px;
+  border-top:1px solid rgba(237,230,214,.14);
+  display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px 24px;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--bone-60);
+}
+.foot a:hover{ color:var(--bone); }
+
+/* @FX:pay-odometer start */
+/* 03 Доход: счётчик купюр. Каждый символ — колонка .odo-d высотой в строку (.9em, как line-height .pay-big),
+   у цифр внутри лента .odo-s из 20 <i> (0–9 дважды); --n = конечная позиция (10+цифра), CSS ставит её сам:
+   без GSAP/JS число стоит верно. JS крутит ленты непрерывно (дробный сдвиг), как барабаны в купюросчётной машине:
+   значение разгоняется 0 → 6 000 000 и тормозит, старшие разряды докатываются первыми, младшие мельтешат до конца. */
+.pay-big{ font-variant-numeric:tabular-nums; font-size:clamp(44px,12vw,180px); }   /* крупнее: было 9.5vw/150 */
+.odo{ display:block; white-space:nowrap; }
+/* окно колонки сдвинуто на .04em вниз (top + минус-margin ленты): округлые цифры Oswald свисают под базовую линию
+   на .016em — так хвост предыдущей цифры не просвечивает сверху, а низ текущей не режется */
+.odo-d{ position:relative; top:.04em; display:inline-block; vertical-align:bottom; height:.9em; overflow:hidden; }
+.odo-s{ display:block; margin-top:-.04em; transform:translateY(calc(var(--n,0) * -.9em)); will-change:transform; }
+.odo-s i{ display:block; height:.9em; line-height:.9; font-style:normal; text-align:center; }
+.pay-big.is-hit{ filter:brightness(1.7); }            /* один кадр удара при посадке */
+.pay-big.is-hit .odo{ transform:translateY(4px); }     /* просадка табло на кадр */
+.pay-plaque-w{ display:flex; justify-self:start; }    /* обнимает плашку; без строчного strut'а */
+.odo-armed .pay-plaque-w{ opacity:0; }                 /* только когда счётчик взведён (GSAP есть, reduce нет) */
+.odo-armed .pay-plaque-w.is-wipe{ animation:bWipe .5s steps(14) both; }   /* bWipe — из хиро (index.html) */
+/* @FX:pay-odometer end */
+
+/* @FX:spec-selector start */
+/* ---------- 04 Специальности: выбор класса. Скобки живут внутри карточки (растут вместе с ней), выбранная — в цвете, по наведению выезжает над сеткой ---------- */
+.spec-grid{ position:relative; --spec-pop:1; }
+@media (max-width:959px){ .spec-grid.has-sel .spec.is-sel{ transform:scale(1.03); } .spec-grid.has-sel .spec .media img{ filter:grayscale(1) brightness(.38) contrast(1.05); } .spec-grid.has-sel .spec.is-sel .media img{ filter:none; } }   /* тач: выбор за скроллом, выбранный чуть крупнее и в цвете */
+@media (min-width:960px){ .spec-grid{ --spec-pop:1.14; } }    /* 2 колонки: карточки широкие, большой pop вылетает за экран */
+@media (min-width:1100px){ .spec-grid{ --spec-pop:1.45; } }   /* 4 колонки — большой pop как в игре; на тач не растим */
+.spec{ position:relative; }
+.spec .spec-sel{
+  position:absolute; inset:-5px; z-index:4; pointer-events:none; opacity:0;
+  --sc:var(--bone-75); --sl:var(--mark); --sw:2px;
+  background:
+    linear-gradient(var(--sc),var(--sc)) 0 0/var(--sl) var(--sw) no-repeat,
+    linear-gradient(var(--sc),var(--sc)) 0 0/var(--sw) var(--sl) no-repeat,
+    linear-gradient(var(--sc),var(--sc)) 100% 0/var(--sl) var(--sw) no-repeat,
+    linear-gradient(var(--sc),var(--sc)) 100% 0/var(--sw) var(--sl) no-repeat,
+    linear-gradient(var(--sc),var(--sc)) 0 100%/var(--sl) var(--sw) no-repeat,
+    linear-gradient(var(--sc),var(--sc)) 0 100%/var(--sw) var(--sl) no-repeat,
+    linear-gradient(var(--sc),var(--sc)) 100% 100%/var(--sl) var(--sw) no-repeat,
+    linear-gradient(var(--sc),var(--sc)) 100% 100%/var(--sw) var(--sl) no-repeat;
+}
+.spec.is-sel .spec-sel{ opacity:1; }
+/* как в игре: выбранный класс — в цвете, остальные притухшие ч/б; по наведению карта выезжает над сеткой (pop с лёгким перелётом) */
+.js .spec-grid.has-sel .spec.rv.is-in{ transition:opacity .6s ease, transform .22s cubic-bezier(.2,.8,.3,1.12), border-color .14s steps(2); }
+.spec-grid.has-sel .spec .media img{ filter:grayscale(1) brightness(.5) contrast(1.05); transition:filter .14s steps(2); }
+.spec-grid.has-sel .spec.is-sel{ z-index:3; border-color:var(--bone-60); background:var(--ink-2); }
+.spec-grid.has-sel .spec.is-sel .media img{ filter:none; }
+.spec-grid.has-sel .spec.is-sel.is-pop{ transform:scale(var(--spec-pop)); z-index:5; box-shadow:0 30px 80px rgba(0,0,0,.6); }
+/* карточки и шаги — цветные генерации (v3), в покое сайт показывает их ч/б, выбранная — как есть */
+.spec-grid.has-sel .spec:focus-visible{ outline:0; }
+/* @FX:spec-selector end */
+
+/* @FX:steps-stamps start */
+/* 07 Шаги = выбор миссии (как в CoD). Десктоп: сцена липнет на 220vh; слева — большое превью активного этапа (номер, название, текст, фото),
+   справа — список четырёх этапов лесенкой: миниатюра + название; активный подсвечен, пройденные со штампом на миниатюре.
+   Скролл переключает этап 1→4, клик/Enter — прыжок к нему. Мобилка: обычные карточки, активна та, что у 40 % экрана.
+   Базовое состояние без JS/GSAP/reduce: сетка 4 в ряд, всё видно, штампы стоят. */
+.steps-scene{ position:relative; }
+.lvl-big{ display:none; }
+@media (min-width:960px){
+  .steps-scene.is-armed{ height:220vh; }
+  .steps-scene.is-armed .steps-sticky{ position:sticky; top:0; min-height:100svh; display:flex; flex-direction:column; justify-content:center; }
+  .steps-scene.is-lvl .lvl{ display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:0 clamp(28px,4vw,64px); align-items:start; }
+  /* превью */
+  .steps-scene.is-lvl .lvl-big{ display:block; border-top:2px solid var(--red); padding-top:14px; }
+  .steps-scene.is-lvl .lvl-big .step-num{ font-family:var(--font-display); font-weight:700; font-size:clamp(64px,7vw,110px); line-height:.9; color:var(--bone); }
+  .steps-scene.is-lvl .lvl-big h3{ margin:8px 0 0; font-family:var(--font-display); font-weight:600; font-size:clamp(24px,2.4vw,36px); line-height:1.05; letter-spacing:.03em; text-transform:uppercase; color:var(--bone); }
+  .steps-scene.is-lvl .lvl-big p{ margin-top:10px; font-size:clamp(15px,1.3vw,19px); line-height:1.5; color:var(--bone-90); max-width:36em; }
+  .steps-scene.is-lvl .lvl-big .media{ margin-top:18px; aspect-ratio:16/10; max-height:calc(100svh - 430px); min-height:220px; }
+  .steps-scene.is-lvl .lvl-big .media::after{ content:""; position:absolute; inset:0; z-index:1; background:rgba(237,230,214,.75); opacity:0; pointer-events:none; }
+  .steps-scene.is-lvl .lvl-big.is-cut .media::after{ animation:flash .16s steps(2,end) forwards; }
+  .steps-scene.is-lvl .lvl-big.is-cut .step-num,.steps-scene.is-lvl .lvl-big.is-cut h3,.steps-scene.is-lvl .lvl-big.is-cut p{ animation:lvlCut .2s steps(2,end) both; }
+  /* список */
+  .steps-scene.is-lvl .steps{ display:grid; grid-template-columns:1fr; gap:10px; margin-top:0; }
+  .steps-scene.is-lvl .step{
+    display:grid; grid-template-columns:clamp(112px,11vw,164px) 1fr; gap:6px 16px; align-items:center;
+    padding:11px 14px 11px 11px; margin-left:calc(var(--k,0) * 24px);   /* лесенка */
+    border:1px solid rgba(237,230,214,.12); border-top-width:1px; background:rgba(255,255,255,.02);
+    transition:border-color .14s steps(2), background-color .14s steps(2);
+  }
+  .steps-scene.is-lvl .step .media{ grid-column:1; grid-row:1 / span 2; margin:0; aspect-ratio:4/3; }
+  .steps-scene.is-lvl .step .step-num{ align-self:end; font-family:var(--font-mono); font-weight:500; font-size:11px; letter-spacing:.14em; color:var(--red); line-height:1; }
+  .steps-scene.is-lvl .step h3{ align-self:start; margin:0; font-size:clamp(17px,1.5vw,22px); line-height:1.1; }
+  .steps-scene.is-lvl .step p{ display:none; }
+  .steps-scene.is-lvl .step.is-on{ border-color:var(--bone-60); background:rgba(255,255,255,.055); }
+  .steps-scene.is-lvl .step .stamp{ font-size:12px; padding:2px 8px 3px 7px; right:6px; bottom:6px; -webkit-mask-size:256px 128px; mask-size:256px 128px; letter-spacing:.08em; }
+}
+@keyframes lvlCut{ from{ opacity:0; } to{ opacity:1; } }
+.step .media{ container-type:inline-size; }   /* размер штампа от ширины фото (cqw), не от экрана */
+.stamp{
+  position:absolute; right:12px; bottom:14px; z-index:2;
+  padding:3px 12px 4px 10px;
+  background:var(--red); color:var(--bone);
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(22px,2vw,30px); font-size:clamp(22px,9cqw,30px); line-height:1.15;   /* первое — фолбэк без cqw */
+  letter-spacing:.1em; text-transform:uppercase; white-space:nowrap;
+  clip-path:polygon(0 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
+  -webkit-mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/img/grunge-mask.png") var(--mx,0) var(--my,0)/512px 256px repeat;
+          mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/img/grunge-mask.png") var(--mx,0) var(--my,0)/512px 256px repeat;
+  transform:rotate(var(--r,-6deg));
+  transform-origin:80% 60%;
+  pointer-events:none;
+}
+.step .media::after{ content:""; position:absolute; inset:0; z-index:1; background:rgba(237,230,214,.75); opacity:0; pointer-events:none; }
+/* взведено: неактивные притухают, активный в цвете */
+.steps-scene.is-armed .step{ cursor:pointer; }
+.steps-scene.is-armed .step:first-child{ border-top-color:rgba(237,230,214,.2); }   /* красная линия у активного, не у первого */
+.steps-scene.is-armed .step .media img{ filter:grayscale(1) brightness(.45) contrast(1.05); transition:filter .14s steps(2); }
+.steps-scene.is-armed .step .step-num,.steps-scene.is-armed .step h3{ color:var(--bone-40); transition:color .14s steps(2); }
+.steps-scene.is-armed .step p{ color:var(--bone-60); }
+.steps-scene.is-armed .step.is-on{ border-top-color:var(--red); z-index:3; }
+.steps-scene.is-armed .step.is-on .media img{ filter:none; }
+.steps-scene.is-armed .step.is-on .step-num,.steps-scene.is-armed .step.is-on h3{ color:var(--bone); }
+.steps-scene.is-armed .step.is-on p{ color:var(--bone-90); }
+.steps-scene.is-lvl .step.is-on .step-num{ color:var(--red); }
+.steps-scene.is-armed .step:focus-visible{ outline:0; }
+.steps-scene.is-armed .step:focus-visible h3{ text-decoration:underline; text-underline-offset:.12em; }
+/* штампы: только у пройденных */
+.steps-scene.is-armed .step:not(.is-done) .stamp{ opacity:0; }
+.steps-scene.is-armed .step.is-done .stamp{ animation:stSlam .18s cubic-bezier(.55,0,.35,1) both; }
+.steps-scene.is-armed .step.is-done .media::after{ animation:flash .14s steps(2,end) .1s forwards; }
+@keyframes stSlam{
+  from{ transform:rotate(var(--r,-6deg)) scale(1.45); }
+  70%{ transform:rotate(var(--r,-6deg)) scale(.96); }
+  to{ transform:rotate(var(--r,-6deg)) scale(1); }
+}
+@media (prefers-reduced-motion:reduce){ .stamp,.step .media::after{ animation:none !important; } }
+/* @FX:steps-stamps end */
+
+/* @FX:atmo start */
+html,body{ overflow-x:clip; }
+/* Атмосфера: фиксированный слой под блоками — заблюренный и затемнённый луп полёта (запечён ffmpeg'ом: gblur+eq),
+   поверх — canvas: пыль в двух планах, крупные мягкие моты, тёплые пятна света, дым, угольки со свечением;
+   плюс (если есть файл) футаж пыли/угольков на чёрном screen-блендом. Секции прозрачные, кроме тех, где Саша сказал «без фона»
+   (02 чёрная сцена, 04, 05, 07). Видео стартует, когда хиро ушёл из кадра. */
+.atmo{ position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; background:var(--ink); }
+.atmo-video{ position:absolute; inset:-3%; width:106%; height:106%; max-width:none; max-height:none; object-fit:cover; opacity:0; transition:opacity 1.4s ease; }   /* max-width:none — базовое video{max-width:100%} резало правый край */
+.atmo.is-on .atmo-video{ opacity:var(--atmo,.42); }
+.atmo::after{ content:""; position:absolute; inset:0; z-index:1;
+  background:radial-gradient(ellipse at 50% 45%, rgba(10,10,10,0) 25%, rgba(10,10,10,.7) 100%),
+             linear-gradient(to bottom, rgba(10,10,10,.5), rgba(10,10,10,.12) 45%, rgba(10,10,10,.55)); }
+.atmo-dust{ position:absolute; inset:0; z-index:2; width:100%; height:100%; }
+.atmo-fx{ position:absolute; inset:0; z-index:3; width:100%; height:100%; max-width:none; object-fit:cover; mix-blend-mode:screen; opacity:0; transition:opacity 1s ease; display:none; }
+.atmo.has-fx .atmo-fx{ display:block; }
+.atmo.has-fx.is-on .atmo-fx{ opacity:var(--atmo-fx,.8); }
+.hero{ z-index:1; }
+.sec{ background:transparent; position:relative; z-index:1; }
+.sec--alt{ background:rgba(17,17,17,.42); }
+.sec--black{ background:#000; }
+#spec,#arsenal,#steps{ background:var(--ink); }   /* решение Саши: фон-атмосфера только в 03, 06, 08 */
+@media (prefers-reduced-motion:reduce){ .atmo-video,.atmo-dust,.atmo-fx{ display:none !important; } }
+/* @FX:atmo end */
+
+/* @FX:final-hud-lock start */
+/* 08 Финал: HUD-скобки захватывают кнопку «Написать в MAX» (позиции ставит JS, здесь только плавающая кнопка).
+   На время захвата .fab гаснет — на экране одна цель. .is-quick снимает стартовую задержку 1,4 с из хиро,
+   иначе после возврата кнопка появлялась бы с опозданием. Специфичность выше .js .is-ready .fab. */
+.js .is-ready .fab.is-quick{ transition-delay:0s; }
+.js .is-ready .fab.is-off{ opacity:0; pointer-events:none; transition-duration:.3s; }
+/* @FX:final-hud-lock end */
+/* @BLOCKS_CSS:end */
+
+/* ---------- Включение HUD: один оркестрованный момент ---------- */
+.js .b-fade,.js .b-wipe,.js .b-flick{ opacity:0; }
+.js .hud-mark{ transform:scale(0); }
+.js .hud-frame{ opacity:0; }
+.js .fab{ opacity:0; pointer-events:none; }
+.js .is-ready .b-fade{ animation:bFade .45s ease-out both; animation-delay:var(--d,0s); }
+.js .is-ready .b-wipe{ animation:bWipe .5s steps(14) both; animation-delay:var(--d,0s); }
+.js .is-ready .b-flick{ animation:bFlick .6s steps(1,end) both; animation-delay:var(--d,0s); }
+.js .is-ready .hud-mark{ animation:bMark .4s cubic-bezier(.2,.8,.2,1) both; animation-delay:.35s; }
+.js .is-ready .hud-frame{ animation:bFade .7s ease-out both; animation-delay:.5s; }
+.js .is-ready .fab{ opacity:1; pointer-events:auto; transition-delay:1.4s; }
+@keyframes bFade{ from{ opacity:0; } to{ opacity:1; } }
+@keyframes bWipe{ from{ opacity:1; clip-path:inset(0 100% 0 0); } to{ opacity:1; clip-path:inset(0 0 0 0); } }
+@keyframes bFlick{ 0%{opacity:0} 16%{opacity:1} 28%{opacity:.12} 40%{opacity:1} 54%{opacity:.45} 66%{opacity:1} 80%{opacity:.85} 100%{opacity:1} }
+@keyframes bMark{ from{ transform:scale(0); } to{ transform:scale(1); } }
+
+/* вспышка в момент удара */
+.hero-flash{ position:absolute; inset:0; z-index:7; background:var(--bone); opacity:0; pointer-events:none; }
+.is-ready .hero-flash{ animation:flash .55s ease-out both; }
+@keyframes flash{ 0%{ opacity:.55; } 100%{ opacity:0; } }
+
+.hud-grain{ animation:grain .9s steps(1,end) infinite; }
+@keyframes grain{
+  0%,100%{ transform:translate(0,0); } 10%{ transform:translate(-2%,-3%); } 20%{ transform:translate(3%,1%); }
+  30%{ transform:translate(-1%,3%); } 40%{ transform:translate(2%,-2%); } 50%{ transform:translate(-3%,1%); }
+  60%{ transform:translate(1%,2%); } 70%{ transform:translate(3%,-3%); } 80%{ transform:translate(-2%,2%); } 90%{ transform:translate(2%,3%); }
+}
+
+/* ---------- Без JS / reduced motion: всё видно сразу, видео → постер ---------- */
+html:not(.js) .cine{ display:none; }
+@media (prefers-reduced-motion: reduce){
+  .hero-video{ display:none; }
+  .cine{ display:none; }
+  .hud-grain,.tele .rec,.fab-dot{ animation:none !important; }
+  .js .b-fade,.js .b-wipe,.js .b-flick,.js .hud-frame,.js .fab{ opacity:1 !important; animation:none !important; pointer-events:auto; }
+  .js .hud-mark{ transform:none !important; animation:none !important; }
+  .is-ready .hero-flash{ animation:none; }
+  .btn-primary,.btn-ghost,.hero-video,.cine-bar{ transition:none; }
+}
+</style>

@@ -1,0 +1,61 @@
+<!-- T123: HUD-слой + плавающая кнопка + хиро. У блока отступы 0, фон нет -->
+<!-- HUD поверх всей страницы -->
+<div class="hud" aria-hidden="true">
+  <div class="hud-grain"></div>
+  <div class="hud-frame"></div>
+  <i class="hud-mark tl"></i><i class="hud-mark tr"></i><i class="hud-mark bl"></i><i class="hud-mark br"></i>
+</div>
+
+<a class="fab" href="https://max.ru/u/f9LHodD0cOKSEDAXh9Gl8uI5gBbve9a7j5lPK_B9cOLW4PXoWvfzXRIU-UI" target="_blank" rel="noopener" aria-label="Написать в MAX"><span class="fab-dot" aria-hidden="true"></span>MAX</a>
+
+<header class="hero" id="hero">
+  <img class="hero-poster" src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/video/hero-poster.jpg" alt="" aria-hidden="true" decoding="async" fetchpriority="high">
+  <video class="hero-video v-intro" muted playsinline preload="auto" aria-hidden="true" tabindex="-1"
+         data-src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/video/hero-intro-1280.mp4"></video>
+  <video class="hero-video v-loop" muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"
+         data-src-lg="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/video/hero-loop-1280.mp4"
+         data-src-sm="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/video/hero-loop-640.mp4"></video>
+  <div class="hero-shade" aria-hidden="true"></div>
+  <div class="hero-flash" aria-hidden="true"></div>
+
+  <!-- кино-слой: живёт первые секунды -->
+  <div class="cine" aria-hidden="true">
+    <div class="cine-bar cine-bar--top"><img class="cine-emblem" src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/img/emblem-1080.webp" alt="" width="1270" height="1080"></div>
+    <div class="cine-bar cine-bar--bottom"><span class="cine-line"></span><p class="cine-motto">Тихо взлетаем&nbsp;— уверенно побеждаем</p></div>
+    <p class="cine-kicker"><span>164-я отдельная мотострелковая бригада</span><span>Батальон беспилотных систем</span></p>
+    <div class="cine-tc" data-tc>00:00:00:00</div>
+  </div>
+
+
+  <nav class="nav b-fade" style="--d:.45s" aria-label="Основная навигация">
+    <a class="brand" href="#hero" aria-label="АРГОС, батальон БПЛА 164-й бригады">
+      <img class="brand-emblem" src="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v1/assets/img/emblem-136.webp" alt="" width="34" height="34" decoding="async">
+      <span class="brand-name">Аргос</span>
+      <span class="brand-rule" aria-hidden="true"></span>
+      <span class="brand-unit">164 бригада</span>
+    </a>
+  </nav>
+
+  <div class="tele tele-tr b-wipe" style="--d:.56s" aria-hidden="true">
+    <span class="rec">●</span> REC <span class="v" data-tele="time">T+ 00:00:00</span>
+  </div>
+
+  <div class="hero-copy">
+    <div class="hero-copy-in">
+      <h1 class="hero-title">
+        <span class="hero-kicker b-wipe" style="--d:.5s">Служба по&nbsp;контракту в&nbsp;батальоне БПЛА</span>
+        <span class="hero-word-row b-flick" style="--d:.65s"><span class="hero-word"><span class="vh">«</span>Аргос<span class="vh">»</span></span></span>
+      </h1>
+      <p class="hero-plaque b-wipe" style="--d:.95s">Точность. Скорость. Результат.</p>
+      <p class="hero-lead b-fade" style="--d:1.05s">Интеллектуальная война и&nbsp;работа с&nbsp;передовыми технологиями. Заработай от&nbsp;6&nbsp;000&nbsp;000&nbsp;₽ за&nbsp;первый год службы</p>
+      <ul class="hero-points b-fade" style="--d:1.15s">
+        <li>Единовременная выплата до&nbsp;4&nbsp;500&nbsp;000&nbsp;₽</li>
+        <li>Опыт не&nbsp;обязателен&nbsp;— берём кандидатов до&nbsp;45&nbsp;лет</li>
+      </ul>
+      <div class="hero-cta b-fade" style="--d:1.25s">
+        <a class="btn-primary" href="https://max.ru/u/f9LHodD0cOKSEDAXh9Gl8uI5gBbve9a7j5lPK_B9cOLW4PXoWvfzXRIU-UI" target="_blank" rel="noopener">Связаться с&nbsp;нами</a>
+        <p class="hero-note">Консультация бесплатная и&nbsp;ни&nbsp;к&nbsp;чему не&nbsp;обязывает</p>
+      </div>
+    </div>
+  </div>
+</header>
