@@ -1,6 +1,6 @@
 <!-- Настройки страницы → Дополнительно → HTML-код внутрь head (или Настройки сайта → Ещё) -->
 <meta name="theme-color" content="#0A0A0A">
-<meta property="og:image" content="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v2/assets/video/hero-poster.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v3/assets/video/hero-poster.jpg">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="720">
 <meta name="twitter:card" content="summary_large_image">
@@ -261,8 +261,8 @@ h3{ margin:1em 0; }   /* явно = дефолт браузера: Tilda обн�
   color:var(--bone);
   margin:0 -.06em -.1em -.02em; padding:0 .06em .1em 0;   /* маска режет по боксу строки — даём место выносам «О»/«С» снизу и справа */
   /* потёртость: запечённая маска, дёшево для GPU */
-  -webkit-mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v2/assets/img/grunge-mask.png") 0 0/1024px 512px repeat;
-          mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v2/assets/img/grunge-mask.png") 0 0/1024px 512px repeat;
+  -webkit-mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v3/assets/img/grunge-mask.png") 0 0/1024px 512px repeat;
+          mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v3/assets/img/grunge-mask.png") 0 0/1024px 512px repeat;
 }
 @media (max-width:699px){ .hero-word{ -webkit-mask-size:560px 280px; mask-size:560px 280px; } }  /* крап пропорционально буквам */
 @media (max-width:699px){   /* телефон: 16:9 не зумим в кадр — видео в верхних 62 % экрана, снизу растворяется в чёрный под текст */
@@ -328,7 +328,7 @@ h3{ margin:1em 0; }   /* явно = дефолт браузера: Tilda обн�
 .sec-idx::before{ content:""; width:7px; height:7px; background:var(--red); }
 .h2{
   font-family:var(--font-display); font-weight:700;
-  font-size:clamp(34px,4.6vw,68px); line-height:1.06;   /* .98 давал наезд хвостов Д/Ц/Щ на бреве Й следующей строки (Саша 20.09) */
+  font-size:clamp(34px,4.6vw,68px); line-height:1.2;   /* 20.09 Настя+Макс «слипся»: бреве Й в Oswald сидит высоко, при 1.06–1.12 касается хвостов Д/Ц/Ь строки выше */   /* .98 давал наезд хвостов Д/Ц/Щ на бреве Й следующей строки (Саша 20.09) */
   letter-spacing:-.005em; text-transform:uppercase;
   color:var(--bone);
   text-wrap:balance;
@@ -336,6 +336,8 @@ h3{ margin:1em 0; }   /* явно = дефолт браузера: Tilda обн�
 .h2 em{ font-style:normal; color:var(--red); }
 .lead{ font-size:clamp(16px,1.2vw,19px); line-height:1.55; color:var(--bone-90); max-width:34em; }
 .small{ font-size:13px; line-height:1.45; color:var(--bone-60); }
+.br-m{ display:none; }
+@media (max-width:959px){ .br-m{ display:inline; } }   /* перенос подписи на телефоне (правка Насти 20.09) */
 .btn-primary--sm{ padding:11px 20px 12px; font-size:16px; }
 .btn-line{
   display:inline-flex; align-items:center; gap:10px;
@@ -447,8 +449,8 @@ h3{ margin:1em 0; }   /* явно = дефолт браузера: Tilda обн�
 .bonus{ margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .bonus li{ padding:14px 14px 15px; border:1px solid rgba(237,230,214,.16); background:rgba(255,255,255,.02); }
 .bonus li:first-child{ border-color:var(--red); }
-.bonus b{ display:block; font-family:var(--font-display); font-weight:700; font-size:clamp(24px,2.4vw,34px); line-height:1; color:var(--bone); }
-.bonus b small{ font-size:.55em; font-weight:500; color:var(--bone-75); }
+.bonus b{ display:block; font-family:var(--font-display); font-weight:700; font-size:clamp(24px,2vw,28px); line-height:1; color:var(--bone); white-space:nowrap; }   /* 28px max: «300–500 тыс. ₽» одним размером влезает в карточку на ПК */
+.bonus b small{ font-size:1em; font-weight:700; color:var(--bone-75); }   /* правка Насти 20.09: «тыс. ₽» одним размером с числом */
 .bonus span{ display:block; margin-top:8px; font-size:13.5px; line-height:1.4; color:var(--bone-90); }
 @media (max-width:479px){ .bonus{ grid-template-columns:1fr; } }
 .pay-cta{
@@ -570,6 +572,15 @@ h3{ margin:1em 0; }   /* явно = дефолт браузера: Tilda обн�
 .reel-strip{ display:grid; gap:6px; margin-top:clamp(24px,3vw,40px); }
 @media (min-width:560px){ .reel-strip{ grid-template-columns:1fr 1fr; } }
 @media (min-width:900px){ .reel-strip{ grid-template-columns:repeat(3,1fr); } }
+/* перф 20.09: на десктопе шесть клипов = шесть видео-слоёв → 30 fps; вместо них одна мозаика 3×2 (1920×720) под сеткой,
+   ячейки прозрачные, зазоры сетки закрашены тенью ячеек. Ниже 900px — прежние шесть клипов (в кадре 1–2). */
+.reel-mosaic{ display:none; }
+@media (min-width:900px){
+  .reel-strip{ position:relative; }
+  .reel-mosaic{ display:block; position:absolute; inset:0; z-index:0; width:100%; height:100%; max-width:none; object-fit:fill; filter:saturate(.8) contrast(1.05); }
+  .reel-strip .media{ position:relative; z-index:1; background:transparent; box-shadow:0 0 0 4px var(--ink); }
+  .reel-strip .media video{ display:none; }
+}
 .reel-strip .media{ aspect-ratio:16/9; }
 .reel-strip .media video{ filter:saturate(.8) contrast(1.05); }
 .reel-tag{
@@ -709,8 +720,8 @@ h3{ margin:1em 0; }   /* явно = дефолт браузера: Tilda обн�
   font-size:clamp(22px,2vw,30px); font-size:clamp(22px,9cqw,30px); line-height:1.15;   /* первое — фолбэк без cqw */
   letter-spacing:.1em; text-transform:uppercase; white-space:nowrap;
   clip-path:polygon(0 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
-  -webkit-mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v2/assets/img/grunge-mask.png") var(--mx,0) var(--my,0)/512px 256px repeat;
-          mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v2/assets/img/grunge-mask.png") var(--mx,0) var(--my,0)/512px 256px repeat;
+  -webkit-mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v3/assets/img/grunge-mask.png") var(--mx,0) var(--my,0)/512px 256px repeat;
+          mask:url("https://cdn.jsdelivr.net/gh/AlexanderAbramovich/argos-assets@v3/assets/img/grunge-mask.png") var(--mx,0) var(--my,0)/512px 256px repeat;
   transform:rotate(var(--r,-6deg));
   transform-origin:80% 60%;
   pointer-events:none;
@@ -748,15 +759,14 @@ html,body{ overflow-x:clip; }
    плюс (если есть файл) футаж пыли/угольков на чёрном screen-блендом. Секции прозрачные, кроме тех, где Саша сказал «без фона»
    (02 чёрная сцена, 04, 05, 07). Видео стартует, когда хиро ушёл из кадра. */
 .atmo{ position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; background:var(--ink); }
-.atmo-video{ position:absolute; inset:-3%; width:106%; height:106%; max-width:none; max-height:none; object-fit:cover; opacity:0; transition:opacity 1.4s ease; }   /* max-width:none — базовое video{max-width:100%} резало правый край */
-.atmo.is-on .atmo-video{ opacity:var(--atmo,.42); }
-.atmo::after{ content:""; position:absolute; inset:0; z-index:1;
+.atmo-video{ display:none; }   /* перф 20.09: видео-луп не слой (второй видео-слой = 30 fps), кадры рисует .atmo-dust через drawImage с альфой --atmo */   /* max-width:none — базовое video{max-width:100%} резало правый край */
+
+.atmo::after{ content:""; position:absolute; inset:0; z-index:1; display:none;   /* виньетка теперь рисуется в канвасе поверх видео-лупа */
   background:radial-gradient(ellipse at 50% 45%, rgba(10,10,10,0) 25%, rgba(10,10,10,.7) 100%),
              linear-gradient(to bottom, rgba(10,10,10,.5), rgba(10,10,10,.12) 45%, rgba(10,10,10,.55)); }
 .atmo-dust{ position:absolute; inset:0; z-index:2; width:100%; height:100%; }
-.atmo-fx{ position:absolute; inset:0; z-index:3; width:100%; height:100%; max-width:none; object-fit:cover; mix-blend-mode:screen; opacity:0; transition:opacity 1s ease; display:none; }
-.atmo.has-fx .atmo-fx{ display:block; }
-.atmo.has-fx.is-on .atmo-fx{ opacity:var(--atmo-fx,.8); }
+.atmo-fx{ display:none; }   /* перф 20.09: футаж больше НЕ отдельный слой с mix-blend-mode:screen (второй видео-слой + blend = 30 fps даже на 5070);
+   элемент только декодирует, кадры рисуются в .atmo-dust через drawImage 'lighter' (тот же screen-эффект) */
 .hero{ z-index:1; }
 .sec{ background:transparent; position:relative; z-index:1; }
 .sec--alt{ background:rgba(17,17,17,.42); }

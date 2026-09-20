@@ -34,7 +34,10 @@ window.addEventListener('DOMContentLoaded', function(){
     var canvas = scene.querySelector('canvas');
     var img    = media.querySelector('img');
     var tpl    = scene.getAttribute('data-frames');
-    if (tpl && !window.matchMedia('(min-width: 960px)').matches && (window.devicePixelRatio || 1) < 1.5) tpl = tpl.replace('/f_{i}', '/m_{i}');   /* мелкие кадры только на 1x-экранах */
+    /* три размера кадров по нужным пикселям (ширина окна × dpr): x_ 1916 (ретина-десктоп; правка Макса 20.09 «пиксельный чел»), f_ 1280, m_ 720 */
+    if (tpl) { var need = window.innerWidth * Math.min(2, window.devicePixelRatio || 1);
+      if (window.matchMedia('(min-width: 960px)').matches && need >= 1500) tpl = tpl.replace('/f_{i}', '/x_{i}');
+      else if (!window.matchMedia('(min-width: 960px)').matches && need < 760) tpl = tpl.replace('/f_{i}', '/m_{i}'); }
     var count  = parseInt(scene.getAttribute('data-count'), 10) || 0;
     var padW   = parseInt(scene.getAttribute('data-pad'), 10) || 3;
     var fit    = (media.classList.contains('stage-media') || media.classList.contains('op-media')) && desktopFit() ? 'contain' : 'cover';
@@ -94,6 +97,7 @@ window.addEventListener('DOMContentLoaded', function(){
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(f, dx, dy, dw, dh);
       cur = i;
     }
@@ -250,18 +254,20 @@ window.addEventListener('DOMContentLoaded', function(){
   });
 
   /* ---------- видеополоса: грузим и играем только в зоне видимости ---------- */
-  var vids = Array.prototype.slice.call(document.querySelectorAll('.reel-strip video'));
+  var vids = Array.prototype.slice.call(document.querySelectorAll('.reel-strip video'));   /* включая .reel-mosaic: display:none-клипы IO не пересекает, они не грузятся */
   if (reduce) { vids.forEach(function(v){ v.removeAttribute('autoplay'); }); }
   else if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function(entries){
       entries.forEach(function(e){
-        var v = e.target;
-        if (e.isIntersecting) {
+        var v = e.target, narrow = !window.matchMedia('(min-width: 900px)').matches;
+        /* перф 20.09: на телефоне (одна колонка) играют только клипы, видимые хотя бы наполовину — 2–3 декодера вместо шести */
+        var on = narrow ? e.intersectionRatio >= .5 : e.isIntersecting;
+        if (on) {
           if (!v.getAttribute('src')) { v.src = v.getAttribute('data-src'); v.load(); }
           var p = v.play(); if (p && p.catch) p.catch(function(){});
         } else { v.pause(); }
       });
-    }, { rootMargin: '120px 0px' });
+    }, { rootMargin: window.matchMedia('(min-width: 900px)').matches ? '120px 0px' : '-12% 0px', threshold: [0, .5, 1] });   /* узкий экран: корень ужат, чтобы играли 2–3 клипа */
     vids.forEach(function(v){ io.observe(v); });
   }
 
@@ -431,12 +437,15 @@ window.addEventListener('DOMContentLoaded', function(){
       if (!vid.getAttribute('src')) { vid.src = vid.getAttribute(small ? 'data-src-sm' : 'data-src-lg'); vid.load(); }
       var p = vid.play(); if (p && p.catch) p.catch(function(){}); atmo.classList.add('is-on');
       if (fx && fxOk !== false && atmo.getAttribute('data-fx') === '1') {   /* футаж подключаем только когда файл на месте: data-fx="1" на .atmo (иначе 404 в консоли) */
-        if (!fx.getAttribute('src')) { fxOk = null; fx.addEventListener('loadeddata', function(){ fxOk = true; atmo.classList.add('has-fx'); }, { once: true }); fx.addEventListener('error', function(){ fxOk = false; atmo.classList.remove('has-fx'); }, { once: true }); fx.src = fx.getAttribute(small ? 'data-src-sm' : 'data-src-lg'); fx.load(); }
+        if (!fx.getAttribute('src')) { fxOk = null; fx.addEventListener('loadeddata', function(){ fxOk = true; }, { once: true }); fx.addEventListener('error', function(){ fxOk = false; }, { once: true }); fx.src = fx.getAttribute(small ? 'data-src-sm' : 'data-src-lg'); fx.load(); }
         var q = fx.play(); if (q && q.catch) q.catch(function(){});
       }
     }
     function pauseVid(){ vid.pause(); if (fx) fx.pause(); }
     /* --- canvas --- */
+    var fxAlpha = parseFloat(getComputedStyle(atmo).getPropertyValue('--atmo-fx')) || .8;
+    var vig = null;
+    var vidAlpha = parseFloat(getComputedStyle(atmo).getPropertyValue('--atmo')) || .42, fade = 0, fadeT0 = 0;   /* луп: плавный вход за 1,4 с как раньше через CSS */
     var ctx = cv.getContext('2d'), W = 0, H = 0, far = [], near = [], smoke = [], lights = [], E = [], soft = null, last = 0, raf = 0;
     function mkSoft(){   /* мягкий круг: радиальный градиент один раз в offscreen, дальше только drawImage */
       var s = document.createElement('canvas'), r = 32; s.width = s.height = r * 2; var g = s.getContext('2d'), gr = g.createRadialGradient(r, r, 0, r, r, r);
@@ -444,7 +453,7 @@ window.addEventListener('DOMContentLoaded', function(){
     }
     function rnd(a, b){ return a + Math.random() * (b - a); }
     function seed(){
-      W = cv.width = innerWidth; H = cv.height = innerHeight; far = []; near = []; smoke = []; lights = []; E = [];
+      W = cv.width = innerWidth; H = cv.height = innerHeight; vig = null; far = []; near = []; smoke = []; lights = []; E = [];
       var k = small ? .45 : 1;
       for (var i = 0; i < 110 * k; i++) far.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(.5, 1.3), a: rnd(.1, .35), vx: rnd(3, 14), vy: rnd(-4, 5), ph: rnd(0, 6.28) });
       for (var j = 0; j < 46 * k; j++) near.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(2, 5.5), a: rnd(.18, .55), vx: rnd(10, 34), vy: rnd(-10, 12), ph: rnd(0, 6.28) });
@@ -461,6 +470,19 @@ window.addEventListener('DOMContentLoaded', function(){
       var dt = Math.min(.05, (ts - last) / 1000 || .03); last = ts;
       ctx.clearRect(0, 0, W, H);
       var i, p, a;
+      /* базовый слой: заблюренный луп полёта (cover), альфа --atmo с плавным входом */
+      if (vid.readyState >= 2 && !vid.paused) {
+        if (!fadeT0) fadeT0 = ts; fade = Math.min(1, (ts - fadeT0) / 1400);
+        var bw = vid.videoWidth || 1280, bh = vid.videoHeight || 720, bs = Math.max(W / bw, H / bh) * 1.06, bdw = bw * bs, bdh = bh * bs;
+        ctx.globalAlpha = vidAlpha * fade;
+        try { ctx.drawImage(vid, (W - bdw) / 2, (H - bdh) / 2, bdw, bdh); } catch(e){}
+        ctx.globalAlpha = 1;
+        /* виньетка (раньше .atmo::after между видео и пылью): эллипс к краям + затемнение верха/низа */
+        if (!vig) { var rg = ctx.createRadialGradient(0, 0, 0, 0, 0, 1); rg.addColorStop(.25, 'rgba(10,10,10,0)'); rg.addColorStop(1, 'rgba(10,10,10,.7)');
+          var lg = ctx.createLinearGradient(0, 0, 0, H); lg.addColorStop(0, 'rgba(10,10,10,.5)'); lg.addColorStop(.45, 'rgba(10,10,10,.12)'); lg.addColorStop(1, 'rgba(10,10,10,.55)'); vig = [rg, lg]; }
+        ctx.save(); ctx.translate(W * .5, H * .45); ctx.scale(W * .5 * 1.42, H * .5 * 1.42); ctx.fillStyle = vig[0]; ctx.fillRect(-1, -1, 2, 2); ctx.restore();
+        ctx.fillStyle = vig[1]; ctx.fillRect(0, 0, W, H);
+      }
       /* свет: тёплые пятна, «лампа за дымом» */
       ctx.globalCompositeOperation = 'lighter';
       for (i = 0; i < lights.length; i++) { p = lights[i]; p.x += (p.vx + Math.sin(ts / 9000 + p.ph) * 8) * dt; p.y += (p.vy + Math.cos(ts / 11000 + p.ph) * 6) * dt;
@@ -491,14 +513,26 @@ window.addEventListener('DOMContentLoaded', function(){
         var fl = .55 + .45 * Math.sin(ts / 80 + e.ph * 3);
         ctx.globalAlpha = e.a * f * fl * .35; ctx.fillStyle = '#E8843A'; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 4, 0, 6.283); ctx.fill();   /* ореол */
         ctx.globalAlpha = e.a * f * fl; ctx.fillStyle = fl > .8 ? '#FFD59A' : '#E8843A'; ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, 6.283); ctx.fill(); }
+      /* футаж пыли/угольков (Kling): в тот же канвас аддитивно — визуально screen, но без отдельного blend-слоя */
+      if (fx && fxOk && fx.readyState >= 2 && !fx.paused) {
+        var vw = fx.videoWidth || 1280, vh = fx.videoHeight || 720, sc = Math.max(W / vw, H / vh), dw = vw * sc, dh = vh * sc;
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = fxAlpha;
+        try { ctx.drawImage(fx, (W - dw) / 2, (H - dh) / 2, dw, dh); } catch(e){}
+      }
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
       raf = requestAnimationFrame(frame);
     }
     function start(){ if (run) return; run = true; if (!W) seed(); last = 0; playVid(); if (!raf) raf = requestAnimationFrame(frame); }
-    function stop(){ run = false; pauseVid(); }
-    function update(){ if (!heroOn && !document.hidden) start(); else stop(); }
-    if (hero && 'IntersectionObserver' in window) new IntersectionObserver(function(en){ heroOn = en[0].isIntersecting; update(); }, { threshold: 0 }).observe(hero);
-    else { heroOn = false; update(); }
+    function stop(){ run = false; pauseVid(); fadeT0 = 0; }
+    var seen = {}, anyOn = false;   /* перф 20.09: крутим атмосферу только пока в кадре секция с прозрачным фоном (03/06/08) */
+    function update(){ if (!heroOn && anyOn && !document.hidden) start(); else stop(); }
+    var glass = [].slice.call(document.querySelectorAll('.atmo-through'));
+    if (hero && 'IntersectionObserver' in window) {
+      new IntersectionObserver(function(en){ heroOn = en[0].isIntersecting; update(); }, { threshold: 0 }).observe(hero);
+      if (glass.length) { var gio = new IntersectionObserver(function(en){ en.forEach(function(e){ seen[e.target.id || e.target.className] = e.isIntersecting; }); anyOn = Object.keys(seen).some(function(k){ return seen[k]; }); update(); }, { threshold: 0, rootMargin: '15% 0px' }); glass.forEach(function(g){ gio.observe(g); }); }
+      else anyOn = true;
+    }
+    else { heroOn = false; anyOn = true; update(); }
     document.addEventListener('visibilitychange', update);
     var rt; window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(function(){ small = window.matchMedia('(max-width: 959px)').matches; seed(); }, 150); });
   })();
